@@ -41,6 +41,7 @@ Tambien debido a la amplia magnitud de dispositivos que usan dicho Lenguaje, tod
     Compatibilidad con herramientas DevOps  
     Visualizar su funcionamiento  
     Solucion de errores o Bugs
+    Crear binarios GO en pre-releases
     Verificacion
     Lanzar 1.0 en rama main
 
