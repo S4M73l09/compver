@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/S4M73l09/compver/internal/model"
+	"github.com/S4M73l09/compver/internal/version"
 )
 
 type fakeDetector struct{}
@@ -47,6 +48,13 @@ func TestAnalyzeUsesDetectors(t *testing.T) {
 		t.Fatalf(
 			"se esperaba 1 dependencia, se encontraron %d",
 			len(result.Dependencies),
+		)
+	}
+
+	if result.Dependencies[0].VersionKind != version.Stable {
+		t.Fatalf(
+			"se esperaba una versión estable, se obtuvo %s",
+			result.Dependencies[0].VersionKind,
 		)
 	}
 }

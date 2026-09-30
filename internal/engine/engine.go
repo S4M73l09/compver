@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/S4M73l09/compver/internal/model"
+	"github.com/S4M73l09/compver/internal/version"
 )
 
 type Detector interface {
@@ -63,6 +64,18 @@ func (e *Engine) Analyze(root string) (model.AnalysisResult, error) {
 			dependencies, err := detector.Detect(path)
 			if err != nil {
 				return fmt.Errorf("analizando %s: %w", path, err)
+			}
+
+			for index := range dependencies {
+				parsedVersion, parseErr := version.Parse(
+					dependencies[index].CurrentVersion,
+				)
+				if parseErr != nil {
+					dependencies[index].VersionKind = version.Unknown
+					continue
+				}
+
+				dependencies[index].VersionKind = parsedVersion.Kind()
 			}
 
 			result.Dependencies = append(

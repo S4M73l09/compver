@@ -36,13 +36,14 @@ Tambien debido a la amplia magnitud de dispositivos que usan dicho Lenguaje, tod
 
 ## Metas especificas principales actuales:
 
-    Creacion de un motor general  
-    Visualizacion de versiones  
-    Compatibilidad con herramientas DevOps  
-    Visualizar su funcionamiento  
-    Solucion de errores o Bugs
-    Crear binarios GO en pre-releases
-    Verificacion
-    Lanzar 1.0 en rama main
+ ✅ Creacion de un motor general.    
+    Visualizacion de versiones.  
+    Probar funcionamiento con adaptadores de prueba.  
+    Compatibilidad con herramientas DevOps.  
+    Visualizar su funcionamiento.  
+    Solucion de errores o Bugs.  
+    Crear binarios GO en pre-releases.  
+    Verificacion.  
+    Lanzar 1.0 en rama main.  
 
 
