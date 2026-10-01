@@ -33,3 +33,22 @@ Cambio en `main.go` para que la salida de CLI sea mas humana y consistente.
 La CLI muestra ahora el estado de la versión detectada.
 
 ### Fixed
+
+
+## [01-10-26]
+
+
+### Added
+
+- Añadido en ***cli/*** varios archivos indicando el comando:  
+    [`cli.go`]  
+    [`help.go`]  
+    [`scan.go`]  
+    [`version.go`]  
+
+- Mejora añadida en el archivo de `main.go`.
+- Añadida explicacion sobre los comandos de la aplicacion.
+
+### Changed  
+
+Reformulacion del CLI
