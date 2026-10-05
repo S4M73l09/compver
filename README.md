@@ -13,6 +13,13 @@ Esta aplicacion ha sido desarrollada para implementar una solucion alternativa a
 
 Por ello se ha planteado esta solucion: ***Compver*** es una solucion de codigo abierto, es un comparador de versiones capaz de analizar la ruta que el usuario necesite o el filesystem del repositorio concreto donde sea necesario.
 
+## Arquitectura
+
+La arquitectura de Compver está diseñada para ser modular. El motor trabaja con detectores y proveedores mediante interfaces independientes.
+
+Para conocer los detalles, consulta [ARCHITECTURE.md](ARCHITECTURE.md)
+
+
 ### Su funcion
 
 ***Compver*** compara las versiones usadas en una infraestructura concreta con las versiones mas estables y actuales de la misma herramienta, tambien da una lista sobre las pre-release que tienen las herramientas que este ha analizado. 
@@ -48,9 +55,24 @@ compver
 compver .
 compver /ruta/al/proyecto
 compver scan /ruta/al/proyecto
+compver scan --tool terraform --limit 6 /ruta/proyecto
+compver scan --tool terraform --limit 3 --include-pre-releases
 ```
 
+El argumento `--tool` se puede juntar con cualquier comando mostrado junto con los demas argumentos. En este caso se usa de ejemplo `Terraform`.
+
 Todas ejecutan un análisis básico de la ruta indicada.
+
+##### Argumentos añadidos al scan
+
+Se añadieron estos argumentos para el comando anterior.
+
+```bash
+compver scan --limit <Numero> .
+compver scan --include-pre-releases .
+compver scan --all-versions .
+```
+Esto nos permite mejorar la auditoria de versiones de alguna herramienta o carpeta.
 
 #### Mostrar la versión
 ```bash

@@ -34,6 +34,7 @@ La CLI muestra ahora el estado de la versión detectada.
 
 ### Fixed
 
+---
 
 ## [01-10-26]
 
@@ -52,3 +53,35 @@ La CLI muestra ahora el estado de la versión detectada.
 ### Changed  
 
 Reformulacion del CLI
+
+---
+
+
+## [05-10-26]
+
+
+### Added
+
+- Creado y añadido el contrato de proveedor para usar conexion ***solo*** para verificacion de versiones.
+- Creado archivo `provider.go` en el modulo de GO para probar conectividad.
+- Ahora el motor consulta versiones disponibles durante el analisis.
+- Modo `Dependency` agregado:
+    * Versiones disponibles.
+    * Fuente consultada.
+    * Errores del proveedor.
+    * Si el resultado procede de caché.
+- `internal/app/analyzer.go` centraliza detector y proveedor Go.
+- `scan.go` utiliza ahora `app.NewAnalyzer()`.
+- La CLI muestra el número de versiones remotas encontradas.
+- Añadidas pruebas del proveedor y de la integración con el motor.
+- Añadido un registro centralizado mediante `app.NewAnalyzer()`.
+- Añadido extension de argumentos para el comando de `compver scan`.
+    [`compver scan --limit <Numero>`]
+    [`compver scan --include-prereleases`]
+    [`compver scan --all-versions`]  
+- Añadido un argumento nuevo para el comando `compver scan`.
+    [`compver scan --tool <nombre>`] De momento solo existe compatibilidad con herramienta Go.
+- Creacion de `ARCHITECTURE.md` para mostrar la arquitectura completa.
+
+
+### Changed
