@@ -4,25 +4,22 @@ import (
 	"fmt"
 	"os"
 
-	gomod "github.com/S4M73l09/compver/internal/adapters/gomod"
-	"github.com/S4M73l09/compver/internal/engine"
+	"github.com/S4M73l09/compver/internal/app"
+	"github.com/S4M73l09/compver/internal/version"
 )
 
 func (a *App) runScan(args []string) int {
-	root := "."
-
-	if len(args) > 1 {
-		fmt.Fprintln(os.Stderr, "scan acepta como máximo una ruta")
+	options, root, err := parseScanOptions(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
-	if len(args) == 1 {
-		root = args[0]
+	analyzer, err := app.NewAnalyzer(options.Tool)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
 	}
-
-	analyzer := engine.New(
-		gomod.New(),
-	)
 
 	result, err := analyzer.Analyze(root)
 	if err != nil {
@@ -39,19 +36,23 @@ func (a *App) runScan(args []string) int {
 
 	fmt.Println()
 	fmt.Printf(
-		"%-45s %-15s %-12s %s\n",
+		"%-45s %-15s %-12s %-12s %-12s %s\n",
 		"Nombre",
 		"Version",
 		"Tipo",
 		"Estado",
+		"Disponibles",
+		"Mostradas",
 	)
 
 	fmt.Printf(
-		"%-45s %-15s %-12s %s\n",
+		"%-45s %-15s %-12s %-12s %-12s %s\n",
 		"------",
 		"-------",
 		"----",
 		"------",
+		"-----------",
+		"---------",
 	)
 
 	for _, dependency := range result.Dependencies {
@@ -61,12 +62,36 @@ func (a *App) runScan(args []string) int {
 			dependencyType = "indirecta"
 		}
 
+		selectedVersions := version.Select(
+			dependency.AvailableVersions,
+			version.SelectionOptions{
+				Limit:              options.Limit,
+				IncludePreReleases: options.IncludePreReleases,
+				AllVersions:        options.AllVersions,
+			},
+		)
+
+		availableVersions := fmt.Sprintf(
+			"%d",
+			len(dependency.AvailableVersions),
+		)
+		selectedVersionCount := fmt.Sprintf(
+			"%d",
+			len(selectedVersions),
+		)
+		if dependency.ProviderError != "" {
+			availableVersions = "error"
+			selectedVersionCount = "-"
+		}
+
 		fmt.Printf(
-			"%-45s %-15s %-12s %s\n",
+			"%-45s %-15s %-12s %-12s %-12s %s\n",
 			dependency.Name,
 			dependency.CurrentVersion,
 			dependencyType,
 			dependency.VersionKind,
+			availableVersions,
+			selectedVersionCount,
 		)
 	}
 

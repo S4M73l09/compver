@@ -1,15 +1,19 @@
 package engine
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/S4M73l09/compver/internal/model"
+	"github.com/S4M73l09/compver/internal/providers"
 	"github.com/S4M73l09/compver/internal/version"
 )
 
 type fakeDetector struct{}
+
+type fakeProvider struct{}
 
 func (fakeDetector) CanHandle(path string) bool {
 	return filepath.Base(path) == "example.txt"
@@ -22,6 +26,26 @@ func (fakeDetector) Detect(path string) ([]model.Dependency, error) {
 			CurrentVersion: "1.0.0",
 			Source:         path,
 		},
+	}, nil
+}
+
+func (fakeProvider) CanHandle(model.Dependency) bool {
+	return true
+}
+
+func (fakeProvider) AvailableVersions(
+	context.Context,
+	model.Dependency,
+	providers.QueryOptions,
+) (providers.Result, error) {
+	latest, err := version.Parse("1.1.0")
+	if err != nil {
+		return providers.Result{}, err
+	}
+
+	return providers.Result{
+		Versions: []version.Version{latest},
+		Source:   "fake-provider",
 	}, nil
 }
 
@@ -38,6 +62,7 @@ func TestAnalyzeUsesDetectors(t *testing.T) {
 	}
 
 	engine := New(fakeDetector{})
+	engine.AddProvider(fakeProvider{})
 
 	result, err := engine.Analyze(root)
 	if err != nil {
@@ -56,5 +81,13 @@ func TestAnalyzeUsesDetectors(t *testing.T) {
 			"se esperaba una versión estable, se obtuvo %s",
 			result.Dependencies[0].VersionKind,
 		)
+	}
+
+	if len(result.Dependencies[0].AvailableVersions) != 1 {
+		t.Fatalf("se esperaba 1 versión disponible")
+	}
+
+	if result.Dependencies[0].ProviderSource != "fake-provider" {
+		t.Fatalf("fuente inesperada: %s", result.Dependencies[0].ProviderSource)
 	}
 }
