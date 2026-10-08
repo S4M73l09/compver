@@ -309,6 +309,10 @@ Compver puede actualmente:
 - Aplicar límites y filtros básicos.
 - Usar el comando `--tool go`.
 - Ejecutar tests y validaciones con `go vet`.
+- Seleccionar versiones.
+- Comparacion con la versión actual entre la version estable mas reciente.
+- Estados de comparación.
+- Separacion entre versiones disponibles y seleccionadas.
 
 Está previsto añadir:
 

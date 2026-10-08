@@ -74,6 +74,13 @@ compver scan --all-versions .
 ```
 Esto nos permite mejorar la auditoria de versiones de alguna herramienta o carpeta.
 
+A su vez se añadieron argumentos que se encargan de guardar el cache de la consulta de versiones, para no depender exclusivamente de Internet:
+
+```bash
+compver scan --offline .
+compver scan --refresh .
+```
+
 #### Mostrar la versión
 ```bash
 compver version

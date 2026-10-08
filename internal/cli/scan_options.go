@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+
+	"github.com/S4M73l09/compver/internal/providers"
 )
 
 type scanOptions struct {
@@ -11,6 +13,7 @@ type scanOptions struct {
 	IncludePreReleases bool
 	AllVersions        bool
 	Limit              int
+	NetworkMode        providers.NetworkMode
 }
 
 func parseScanOptions(args []string) (
@@ -45,6 +48,18 @@ func parseScanOptions(args []string) (
 		"número máximo de versiones",
 	)
 
+	offline := flags.Bool(
+		"offline",
+		false,
+		"no realizar consultas de red",
+	)
+
+	refresh := flags.Bool(
+		"refresh",
+		false,
+		"ignorar la caché y consultar de nuevo",
+	)
+
 	if err := flags.Parse(args); err != nil {
 		return scanOptions{}, "", err
 	}
@@ -61,6 +76,20 @@ func parseScanOptions(args []string) (
 		return scanOptions{}, "", fmt.Errorf(
 			"limit debe ser mayor que cero",
 		)
+	}
+
+	if *offline && *refresh {
+		return scanOptions{}, "", fmt.Errorf(
+			"offline y refresh no pueden utilizarse juntos",
+		)
+	}
+
+	networkMode := providers.NetworkAuto
+	if *offline {
+		networkMode = providers.NetworkOffline
+	}
+	if *refresh {
+		networkMode = providers.NetworkRefresh
 	}
 
 	if *tool != "" && *tool != "go" {
@@ -81,5 +110,6 @@ func parseScanOptions(args []string) (
 		IncludePreReleases: *includePreReleases,
 		AllVersions:        *allVersions,
 		Limit:              *limit,
+		NetworkMode:        networkMode,
 	}, root, nil
 }

@@ -29,7 +29,11 @@ func New(detectors ...Detector) *Engine {
 }
 
 func (e *Engine) Analyze(root string) (model.AnalysisResult, error) {
-	return e.AnalyzeContext(context.Background(), root)
+	return e.AnalyzeContextWithOptions(
+		context.Background(),
+		root,
+		providers.QueryOptions{Mode: providers.NetworkAuto},
+	)
 }
 
 func (e *Engine) AddProvider(provider providers.Provider) {
@@ -39,6 +43,29 @@ func (e *Engine) AddProvider(provider providers.Provider) {
 func (e *Engine) AnalyzeContext(
 	ctx context.Context,
 	root string,
+) (model.AnalysisResult, error) {
+	return e.AnalyzeContextWithOptions(
+		ctx,
+		root,
+		providers.QueryOptions{Mode: providers.NetworkAuto},
+	)
+}
+
+func (e *Engine) AnalyzeWithOptions(
+	root string,
+	options providers.QueryOptions,
+) (model.AnalysisResult, error) {
+	return e.AnalyzeContextWithOptions(
+		context.Background(),
+		root,
+		options,
+	)
+}
+
+func (e *Engine) AnalyzeContextWithOptions(
+	ctx context.Context,
+	root string,
+	options providers.QueryOptions,
 ) (model.AnalysisResult, error) {
 	info, err := os.Stat(root)
 	if err != nil {
@@ -104,9 +131,7 @@ func (e *Engine) AnalyzeContext(
 					providerResult, providerErr := provider.AvailableVersions(
 						ctx,
 						dependencies[index],
-						providers.QueryOptions{
-							Mode: providers.NetworkAuto,
-						},
+						options,
 					)
 					if providerErr != nil {
 						dependencies[index].ProviderError = providerErr.Error()

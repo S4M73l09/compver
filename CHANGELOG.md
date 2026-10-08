@@ -85,3 +85,26 @@ Reformulacion del CLI
 
 
 ### Changed
+
+
+---
+
+## [08-10-26]
+
+
+### Added
+
+- Mejora del selector de versiones.
+- Mejorada la comparación con la version actual.
+- Estados de comparación.
+- Separación entre versiones disponibles y seleccionadas.
+- Mejora del registro de proveedores.
+- Mejora de consulta al proxy de Go.
+- El proveedor Go ahora utiliza cache.cache.
+- Añadido nuevos argumentos:
+    - [`auto`] usa caché válida y consulta internet si caduca.
+    - [`refresh`] ignora la caché.
+    - [`offline`] no realiza conexiones y usa solo datos almacenados.
+
+
+### Changed

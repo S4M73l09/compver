@@ -24,7 +24,7 @@ func TestProviderAvailableVersions(t *testing.T) {
 	))
 	defer server.Close()
 
-	provider := NewProvider(server.URL, server.Client())
+	provider := NewProvider(server.URL, server.Client(), nil)
 	result, err := provider.AvailableVersions(
 		context.Background(),
 		model.Dependency{Name: "example.com/library"},

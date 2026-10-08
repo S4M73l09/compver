@@ -77,3 +77,35 @@ func TestStableIsNewerThanPreRelease(t *testing.T) {
 		t.Fatal("una versión estable debería ser posterior a su pre-release")
 	}
 }
+
+func TestComparePreReleaseOrder(t *testing.T) {
+	tests := []struct {
+		left  string
+		right string
+	}{
+		{left: "1.2.3-alpha.1", right: "1.2.3-alpha.2"},
+		{left: "1.2.3-alpha.2", right: "1.2.3-beta.1"},
+		{left: "1.2.3-beta.1", right: "1.2.3-rc.1"},
+		{left: "1.2.3-alpha.2", right: "1.2.3-alpha.10"},
+	}
+
+	for _, test := range tests {
+		left, err := Parse(test.left)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		right, err := Parse(test.right)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if Compare(left, right) >= 0 {
+			t.Fatalf(
+				"se esperaba %s < %s",
+				test.left,
+				test.right,
+			)
+		}
+	}
+}

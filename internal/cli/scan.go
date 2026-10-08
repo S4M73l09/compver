@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/S4M73l09/compver/internal/app"
+	"github.com/S4M73l09/compver/internal/providers"
 	"github.com/S4M73l09/compver/internal/version"
 )
 
@@ -21,7 +22,12 @@ func (a *App) runScan(args []string) int {
 		return 1
 	}
 
-	result, err := analyzer.Analyze(root)
+	result, err := analyzer.AnalyzeWithOptions(
+		root,
+		providers.QueryOptions{
+			Mode: options.NetworkMode,
+		},
+	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -79,6 +85,10 @@ func (a *App) runScan(args []string) int {
 			"%d",
 			len(selectedVersions),
 		)
+		comparison := version.CompareCurrent(
+			dependency.CurrentVersion,
+			selectedVersions,
+		)
 		if dependency.ProviderError != "" {
 			availableVersions = "error"
 			selectedVersionCount = "-"
@@ -93,6 +103,19 @@ func (a *App) runScan(args []string) int {
 			availableVersions,
 			selectedVersionCount,
 		)
+
+		if len(selectedVersions) > 0 {
+			fmt.Println(" Versiones seleccionadas:")
+
+			for _, selectedVersion := range selectedVersions {
+				fmt.Printf("  - %s\n", selectedVersion.String())
+			}
+		}
+
+		fmt.Printf("  Estado: %s\n", comparison.Status)
+		if comparison.Latest != nil {
+			fmt.Printf("  Última disponible: %s\n", comparison.Latest.String())
+		}
 	}
 
 	return 0

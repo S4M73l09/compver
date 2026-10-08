@@ -24,6 +24,21 @@ type Version struct {
 	PreRelease string
 }
 
+func (v Version) String() string {
+	result := fmt.Sprintf(
+		"v%d.%d.%d",
+		v.Major,
+		v.Minor,
+		v.Patch,
+	)
+
+	if v.PreRelease != "" {
+		result += "-" + v.PreRelease
+	}
+
+	return result
+}
+
 func Parse(value string) (Version, error) {
 	value = strings.TrimPrefix(value, "v")
 	value = strings.SplitN(value, "+", 2)[0]
@@ -94,11 +109,11 @@ func Compare(left, right Version) int {
 		return compareInt(left.Patch, right.Patch)
 	}
 
-	if left.PreRelease == right.PreRelease {
-		return 0
-	}
-
 	if left.PreRelease == "" {
+		if right.PreRelease == "" {
+			return 0
+		}
+
 		return 1
 	}
 
@@ -106,7 +121,69 @@ func Compare(left, right Version) int {
 		return -1
 	}
 
-	return strings.Compare(left.PreRelease, right.PreRelease)
+	leftIdentifiers := strings.Split(left.PreRelease, ".")
+	rightIdentifiers := strings.Split(right.PreRelease, ".")
+	identifierCount := len(leftIdentifiers)
+	if len(rightIdentifiers) < identifierCount {
+		identifierCount = len(rightIdentifiers)
+	}
+
+	for index := 0; index < identifierCount; index++ {
+		comparison := comparePreReleaseIdentifier(
+			leftIdentifiers[index],
+			rightIdentifiers[index],
+		)
+		if comparison != 0 {
+			return comparison
+		}
+	}
+
+	if len(leftIdentifiers) < len(rightIdentifiers) {
+		return -1
+	}
+
+	if len(leftIdentifiers) > len(rightIdentifiers) {
+		return 1
+	}
+
+	return 0
+}
+
+func comparePreReleaseIdentifier(left, right string) int {
+	leftNumeric := isNumeric(left)
+	rightNumeric := isNumeric(right)
+
+	if leftNumeric && rightNumeric {
+		leftNumber, leftErr := strconv.Atoi(left)
+		rightNumber, rightErr := strconv.Atoi(right)
+		if leftErr == nil && rightErr == nil {
+			return compareInt(leftNumber, rightNumber)
+		}
+	}
+
+	if leftNumeric != rightNumeric {
+		if leftNumeric {
+			return -1
+		}
+
+		return 1
+	}
+
+	return strings.Compare(left, right)
+}
+
+func isNumeric(value string) bool {
+	if value == "" {
+		return false
+	}
+
+	for _, character := range value {
+		if character < '0' || character > '9' {
+			return false
+		}
+	}
+
+	return true
 }
 
 func compareInt(left, right int) int {
@@ -114,5 +191,9 @@ func compareInt(left, right int) int {
 		return -1
 	}
 
-	return 1
+	if left > right {
+		return 1
+	}
+
+	return 0
 }
