@@ -63,6 +63,7 @@ func (Detector) Detect(path string) ([]model.Dependency, error) {
 		}
 
 		dependencies = append(dependencies, model.Dependency{
+			Tool:           "go",
 			Name:           fields[0],
 			CurrentVersion: fields[1],
 			Source:         path,

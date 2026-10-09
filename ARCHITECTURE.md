@@ -21,6 +21,7 @@ App / registro central
 Engine
   ├── Detectores
   ├── Proveedores
+  │    └── Caché
   ├── Analizador de versiones
   └── Selector de versiones
   ↓
@@ -33,39 +34,57 @@ CLI
 
 ```text
 compver/
-├── cmd/
-│   └── compver/
-│       └── main.go
-├── internal/
-│   ├── adapters/
-│   │   └── gomod/
-│   │       ├── detector.go
-│   │       ├── detector_test.go
-│   │       ├── provider.go
-│   │       └── provider_test.go
-│   ├── app/
-│   │   └── analyzer.go
-│   ├── cli/
-│   │   ├── cli.go
-│   │   ├── help.go
-│   │   ├── scan.go
-│   │   ├── scan_options.go
-│   │   └── version.go
-│   ├── engine/
-│   │   ├── engine.go
-│   │   └── engine_test.go
-│   ├── model/
-│   │   └── model.go
-│   ├── providers/
-│   │   └── provider.go
-│   └── version/
-│       ├── version.go
-│       ├── version_test.go
-│       └── selector.go
-├── README.md
-├── ARCHITECTURE.md
-├── CHANGELOG.md
-└── go.mod
+├── cmd/                                   # Puntos de entrada de los ejecutables.
+│   └── compver/                           # Ejecutable principal de Compver.
+│       └── main.go                        # Inicia la CLI.
+├── internal/                              # Código interno de la aplicación.
+│   ├── adapters/                          # Integraciones específicas por herramienta.
+│   │   ├── gomod/                         # Adaptador para dependencias Go.
+│   │   │   ├── detector.go                # Detecta dependencias en go.mod.
+│   │   │   ├── detector_test.go           # Tests del detector de Go.
+│   │   │   ├── provider.go                # Consulta versiones en proxy.golang.org.
+│   │   │   └── provider_test.go           # Tests del proveedor de Go.
+│   │   └── terraform/                     # Adaptador para Terraform.
+│   │       ├── detector.go                # Detecta la versión de Terraform.
+│   │       ├── detector_test.go           # Tests del detector de Terraform.
+│   │       ├── lock_detector.go           # Lee versiones desde .terraform.lock.hcl.
+│   │       ├── lock_detector_test.go      # Tests del detector de bloqueo.
+│   │       ├── provider.go                # Consulta releases de Terraform.
+│   │       ├── provider_test.go           # Tests del proveedor de Terraform.
+│   │       ├── registry_provider.go       # Consulta providers del Registry.
+│   │       └── registry_provider_test.go  # Tests del Registry.
+│   ├── app/                               # Composición y registro de componentes.
+│   │   └── analyzer.go                    # Registra detectores y proveedores.
+│   ├── cache/                             # Sistema de caché persistente.
+│   │   ├── cache.go                       # Contrato general de caché.
+│   │   ├── file_cache.go                  # Caché basada en archivos JSON.
+│   │   └── file_cache_test.go             # Tests de la caché.
+│   ├── cli/                               # Interfaz de línea de comandos.
+│   │   ├── cli.go                         # Procesa los comandos principales.
+│   │   ├── help.go                        # Muestra la ayuda.
+│   │   ├── scan.go                        # Ejecuta el análisis.
+│   │   ├── scan_options.go                # Procesa las opciones de scan.
+│   │   ├── scan_output.go                 # Agrupa y muestra resultados.
+│   │   ├── spinner.go                     # Muestra progreso durante el análisis.
+│   │   └── version.go                     # Muestra la versión de Compver.
+│   ├── engine/                            # Motor genérico de análisis.
+│   │   ├── engine.go                      # Coordina detectores y proveedores.
+│   │   └── engine_test.go                 # Tests del motor.
+│   ├── model/                             # Modelos de datos compartidos.
+│   │   └── model.go                       # Dependencias y resultados.
+│   ├── providers/                         # Contratos de proveedores externos.
+│   │   └── provider.go                    # Interfaz y opciones de consulta.
+│   └── version/                           # Lógica común de versiones.
+│       ├── version.go                     # Parseo y clasificación.
+│       ├── version_test.go                # Tests de versiones.
+│       ├── selector.go                    # Selección y filtrado.
+│       ├── comparison.go                  # Comparación de versiones.
+│       └── comparison_test.go             # Tests de comparación.
+├── README.md                              # Documentación de uso.
+├── ARCHITECTURE.md                        # Diseño interno del proyecto.
+├── CHANGELOG.md                           # Historial de cambios.
+├── LICENSE                                # Licencia Apache 2.0.
+└── go.mod                                 # Definición del módulo Go.
 ```
 
 ## `cmd/compver`
@@ -78,7 +97,8 @@ pasa los argumentos recibidos.
 Gestiona la interacción con el usuario:
 
 - Interpreta comandos y argumentos.
-- Procesa opciones como `--tool`, `--limit` y `--include-prereleases`.
+- Procesa opciones como `--tool`, `--limit`, `--include-prereleases`,
+  `--offline` y `--refresh`.
 - Muestra resultados, ayuda y errores.
 
 Comandos actuales:
@@ -88,9 +108,12 @@ compver
 compver .
 compver scan .
 compver scan --tool go .
+compver scan --tool terraform .
 compver scan --limit 10 .
 compver scan --include-prereleases .
 compver scan --all-versions .
+compver scan --offline .
+compver scan --refresh .
 compver version
 compver help
 ```
@@ -103,7 +126,8 @@ herramientas.
 Contiene la composición principal de la aplicación. `analyzer.go` registra
 los detectores y proveedores que utilizará el motor.
 
-Actualmente registra el detector y el proveedor de Go Modules.
+Actualmente registra los adaptadores de Go Modules y Terraform. Cuando no se
+indica `--tool`, ambos detectores pueden participar en el análisis.
 
 ## `internal/engine`
 
@@ -144,6 +168,12 @@ Los detectores identifican dependencias y versiones dentro del filesystem.
 El detector actual analiza archivos `go.mod`, extrae dependencias y
 distingue entre dependencias directas e indirectas.
 
+El detector de Terraform analiza archivos `.terraform-version` y obtiene la
+versión fijada del binario de Terraform.
+
+El detector de bloqueo analiza `.terraform.lock.hcl` y obtiene las versiones
+exactas seleccionadas para los providers del proyecto.
+
 El detector no consulta Internet. Su responsabilidad termina cuando devuelve
 los datos encontrados en el proyecto.
 
@@ -158,14 +188,31 @@ El proveedor actual utiliza el proxy de módulos de Go:
 https://proxy.golang.org
 ```
 
+El proveedor de Terraform consulta el índice oficial de releases de HashiCorp:
+
+```text
+https://releases.hashicorp.com/terraform/
+```
+
+Para los providers, el adaptador consulta el Terraform Registry:
+
+```text
+https://registry.terraform.io/v1/providers/{namespace}/{name}/versions
+```
+
+El proveedor extrae versiones estables y pre-releases del listado, dejando
+que el selector común decida cuáles se muestran.
+
 El flujo es:
 
 ```text
 Dependencia actual
   ↓
-Proveedor Go
+Proveedor compatible
   ↓
-Consulta HTTP
+Consulta de caché
+  ├── Entrada válida → Resultado
+  └── Sin entrada válida → Consulta HTTP
   ↓
 Lista de versiones
   ↓
@@ -174,6 +221,10 @@ Resultado del proveedor
 
 Los proveedores deben controlar timeouts, errores HTTP, cancelación mediante
 `context.Context`, versiones no reconocidas y el modo offline.
+
+Cuando obtienen versiones desde Internet, los proveedores pueden guardarlas en
+la caché común. De esta forma, el motor no necesita conocer los detalles de
+cada registro externo.
 
 ## Versiones
 
@@ -239,19 +290,24 @@ SelectedVersions  → versiones filtradas para mostrar al usuario
 
 ## Añadir una nueva herramienta
 
-Para añadir Terraform, por ejemplo, se crearían un detector y un proveedor
-específicos:
+Para añadir otra herramienta se crearían un detector y un proveedor
+específicos. El adaptador de Terraform contiene detectores y proveedores
+separados para el binario y sus providers:
 
 ```text
 internal/adapters/terraform/
 ├── detector.go
 ├── detector_test.go
+├── lock_detector.go
+├── lock_detector_test.go
 ├── provider.go
-└── provider_test.go
+├── provider_test.go
+├── registry_provider.go
+└── registry_provider_test.go
 ```
 
-El detector identificaría archivos como `*.tf` o `.terraform.lock.hcl`, y el
-proveedor consultaría el registro correspondiente.
+El siguiente paso será analizar restricciones declaradas en archivos `*.tf`
+y verificar los plugins instalados en `.terraform/providers`.
 
 El motor no debería modificarse. Solo sería necesario:
 
@@ -272,18 +328,38 @@ perder el resto del análisis.
 
 ## Caché y modo offline
 
-La interfaz de proveedores contempla los modos `auto`, `offline` y
-`refresh`.
+`internal/cache` proporciona una interfaz de caché independiente del
+proveedor y una implementación persistente basada en archivos JSON. La caché
+se guarda en el directorio de usuario de la aplicación, normalmente:
 
-Está previsto implementar:
+```text
+~/.cache/compver/
+```
+
+Las claves se convierten en nombres de archivo seguros mediante un hash, por
+lo que cada herramienta puede reutilizar la misma infraestructura sin
+colisionar con otras.
+
+La interfaz de proveedores contempla los modos `auto`, `offline` y
+`refresh`:
+
+- `auto`: usa una entrada reciente y consulta Internet si falta o está
+  caducada.
+- `offline`: no realiza consultas de red y depende exclusivamente de la
+  caché.
+- `refresh`: ignora la entrada existente, consulta Internet y actualiza la
+  caché.
+
+Ejemplos:
 
 ```bash
 compver scan --offline .
 compver scan --refresh .
 ```
 
-El modo offline no debe realizar consultas de red. Si no existe una caché
-válida, la dependencia se marcará como no consultable.
+El modo offline no realiza consultas de red. Si no existe una entrada de
+caché válida, la dependencia se marca como no consultable y el resto del
+análisis continúa.
 
 ## Principios de diseño
 
@@ -310,16 +386,20 @@ Compver puede actualmente:
 - Usar el comando `--tool go`.
 - Ejecutar tests y validaciones con `go vet`.
 - Seleccionar versiones.
-- Comparacion con la versión actual entre la version estable mas reciente.
+- Comparar la versión actual con las versiones disponibles.
 - Estados de comparación.
-- Separacion entre versiones disponibles y seleccionadas.
+- Separación entre versiones disponibles y seleccionadas.
+- Usar caché persistente compartida entre proveedores.
+- Ejecutar los modos `auto`, `offline` y `refresh`.
+- Detectar Terraform desde `.terraform-version`.
+- Consultar releases de Terraform mediante el proveedor oficial de HashiCorp.
+- Detectar providers y versiones bloqueadas desde `.terraform.lock.hcl`.
+- Consultar versiones de providers mediante el Terraform Registry.
 
 Está previsto añadir:
 
-- Caché persistente.
-- Modo offline completo.
-- Comparación con la versión estable más reciente.
-- Soporte para Terraform.
+- Analizar restricciones de providers en archivos `*.tf`.
+- Inspeccionar providers instalados en `.terraform/providers`.
 - Soporte para npm.
 - Salida JSON.
 - Interfaz CLI con colores y tablas.

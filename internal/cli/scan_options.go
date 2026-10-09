@@ -92,7 +92,7 @@ func parseScanOptions(args []string) (
 		networkMode = providers.NetworkRefresh
 	}
 
-	if *tool != "" && *tool != "go" {
+	if *tool != "" && *tool != "go" && *tool != "terraform" {
 		return scanOptions{}, "", fmt.Errorf(
 			"herramienta no soportada: %s",
 			*tool,

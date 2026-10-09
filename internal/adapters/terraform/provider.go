@@ -1,11 +1,11 @@
-package gomod
+package terraform
 
 import (
 	"bufio"
 	"context"
 	"fmt"
 	"net/http"
-	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -13,6 +13,10 @@ import (
 	"github.com/S4M73l09/compver/internal/model"
 	"github.com/S4M73l09/compver/internal/providers"
 	"github.com/S4M73l09/compver/internal/version"
+)
+
+var releasePattern = regexp.MustCompile(
+	`terraform_([0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.]+)?)`,
 )
 
 type Provider struct {
@@ -27,9 +31,7 @@ func NewProvider(
 	providerCache cache.Cache,
 ) *Provider {
 	if client == nil {
-		client = &http.Client{
-			Timeout: 5 * time.Second,
-		}
+		client = &http.Client{Timeout: 5 * time.Second}
 	}
 
 	return &Provider{
@@ -40,7 +42,8 @@ func NewProvider(
 }
 
 func (Provider) CanHandle(dependency model.Dependency) bool {
-	return dependency.Name != "" && filepath.Base(dependency.Source) == "go.mod"
+	return dependency.Name == "terraform" &&
+		strings.HasSuffix(dependency.Source, ".terraform-version")
 }
 
 func (p *Provider) AvailableVersions(
@@ -48,9 +51,9 @@ func (p *Provider) AvailableVersions(
 	dependency model.Dependency,
 	options providers.QueryOptions,
 ) (providers.Result, error) {
-	cacheKey := "gomod:" + dependency.Name
-	entry, found, cacheErr := p.readCache(cacheKey)
+	const cacheKey = "terraform:terraform"
 
+	entry, found, cacheErr := p.readCache(cacheKey)
 	if options.Mode == providers.NetworkOffline {
 		if cacheErr != nil {
 			return providers.Result{}, cacheErr
@@ -71,23 +74,16 @@ func (p *Provider) AvailableVersions(
 	}
 
 	if options.Mode != providers.NetworkRefresh &&
-		cacheErr == nil &&
-		found &&
+		cacheErr == nil && found &&
 		!entry.RetrievedAt.IsZero() &&
 		time.Since(entry.RetrievedAt) <= cacheTTL {
 		return cacheResult(entry), nil
 	}
 
-	url := fmt.Sprintf(
-		"%s/%s/@v/list",
-		p.baseURL,
-		dependency.Name,
-	)
-
 	request, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodGet,
-		url,
+		p.baseURL,
 		nil,
 	)
 	if err != nil {
@@ -97,8 +93,7 @@ func (p *Provider) AvailableVersions(
 	response, err := p.client.Do(request)
 	if err != nil {
 		return providers.Result{}, fmt.Errorf(
-			"consultando versiones de %s: %w",
-			dependency.Name,
+			"consultando versiones de Terraform: %w",
 			err,
 		)
 	}
@@ -106,30 +101,13 @@ func (p *Provider) AvailableVersions(
 
 	if response.StatusCode != http.StatusOK {
 		return providers.Result{}, fmt.Errorf(
-			"el proxy respondió con HTTP %d",
+			"el registro de Terraform respondió con HTTP %d",
 			response.StatusCode,
 		)
 	}
 
-	var versions []version.Version
-	scanner := bufio.NewScanner(response.Body)
-
-	for scanner.Scan() {
-		rawVersion := strings.TrimSpace(scanner.Text())
-		if rawVersion == "" {
-			continue
-		}
-
-		parsedVersion, err := version.Parse(rawVersion)
-		if err != nil {
-			// Se ignoran las versiones que no reconoce el parser.
-			continue
-		}
-
-		versions = append(versions, parsedVersion)
-	}
-
-	if err := scanner.Err(); err != nil {
+	versions, err := parseVersions(response.Body)
+	if err != nil {
 		return providers.Result{}, err
 	}
 
@@ -137,7 +115,6 @@ func (p *Provider) AvailableVersions(
 		Versions:    versions,
 		Source:      p.baseURL,
 		RetrievedAt: time.Now(),
-		FromCache:   false,
 	}
 
 	if p.cache != nil {
@@ -151,9 +128,34 @@ func (p *Provider) AvailableVersions(
 	return result, nil
 }
 
-func (p *Provider) readCache(
-	key string,
-) (cache.Entry, bool, error) {
+func parseVersions(scannerSource interface{ Read([]byte) (int, error) }) ([]version.Version, error) {
+	var versions []version.Version
+	scanner := bufio.NewScanner(scannerSource)
+	seen := make(map[string]struct{})
+
+	for scanner.Scan() {
+		matches := releasePattern.FindAllStringSubmatch(scanner.Text(), -1)
+		for _, match := range matches {
+			parsed, err := version.Parse(match[1])
+			if err != nil {
+				continue
+			}
+			if _, exists := seen[parsed.String()]; exists {
+				continue
+			}
+			seen[parsed.String()] = struct{}{}
+			versions = append(versions, parsed)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return versions, nil
+}
+
+func (p *Provider) readCache(key string) (cache.Entry, bool, error) {
 	if p.cache == nil {
 		return cache.Entry{}, false, nil
 	}

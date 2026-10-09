@@ -1,11 +1,10 @@
-package gomod
+package terraform
 
 import (
-	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,42 +14,50 @@ import (
 	"github.com/S4M73l09/compver/internal/version"
 )
 
-type Provider struct {
+type RegistryProvider struct {
 	baseURL string
 	client  *http.Client
 	cache   cache.Cache
 }
 
-func NewProvider(
+func NewRegistryProvider(
 	baseURL string,
 	client *http.Client,
 	providerCache cache.Cache,
-) *Provider {
+) *RegistryProvider {
 	if client == nil {
-		client = &http.Client{
-			Timeout: 5 * time.Second,
-		}
+		client = &http.Client{Timeout: 5 * time.Second}
 	}
 
-	return &Provider{
+	return &RegistryProvider{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		client:  client,
 		cache:   providerCache,
 	}
 }
 
-func (Provider) CanHandle(dependency model.Dependency) bool {
-	return dependency.Name != "" && filepath.Base(dependency.Source) == "go.mod"
+func (RegistryProvider) CanHandle(dependency model.Dependency) bool {
+	return strings.HasPrefix(
+		dependency.Name,
+		"registry.terraform.io/",
+	) && strings.HasSuffix(dependency.Source, ".terraform.lock.hcl")
 }
 
-func (p *Provider) AvailableVersions(
+func (p *RegistryProvider) AvailableVersions(
 	ctx context.Context,
 	dependency model.Dependency,
 	options providers.QueryOptions,
 ) (providers.Result, error) {
-	cacheKey := "gomod:" + dependency.Name
-	entry, found, cacheErr := p.readCache(cacheKey)
+	parts := strings.Split(dependency.Name, "/")
+	if len(parts) != 3 || parts[0] != "registry.terraform.io" {
+		return providers.Result{}, fmt.Errorf(
+			"provider Terraform no compatible: %s",
+			dependency.Name,
+		)
+	}
 
+	cacheKey := "terraform-provider:" + dependency.Name
+	entry, found, cacheErr := p.readCache(cacheKey)
 	if options.Mode == providers.NetworkOffline {
 		if cacheErr != nil {
 			return providers.Result{}, cacheErr
@@ -62,34 +69,27 @@ func (p *Provider) AvailableVersions(
 			)
 		}
 
-		return cacheResult(entry), nil
+		return registryCacheResult(entry), nil
 	}
 
 	cacheTTL := options.CacheTTL
 	if cacheTTL <= 0 {
 		cacheTTL = 24 * time.Hour
 	}
-
 	if options.Mode != providers.NetworkRefresh &&
-		cacheErr == nil &&
-		found &&
+		cacheErr == nil && found &&
 		!entry.RetrievedAt.IsZero() &&
 		time.Since(entry.RetrievedAt) <= cacheTTL {
-		return cacheResult(entry), nil
+		return registryCacheResult(entry), nil
 	}
 
 	url := fmt.Sprintf(
-		"%s/%s/@v/list",
+		"%s/v1/providers/%s/%s/versions",
 		p.baseURL,
-		dependency.Name,
+		parts[1],
+		parts[2],
 	)
-
-	request, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		url,
-		nil,
-	)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return providers.Result{}, err
 	}
@@ -97,7 +97,7 @@ func (p *Provider) AvailableVersions(
 	response, err := p.client.Do(request)
 	if err != nil {
 		return providers.Result{}, fmt.Errorf(
-			"consultando versiones de %s: %w",
+			"consultando provider %s: %w",
 			dependency.Name,
 			err,
 		)
@@ -106,40 +106,34 @@ func (p *Provider) AvailableVersions(
 
 	if response.StatusCode != http.StatusOK {
 		return providers.Result{}, fmt.Errorf(
-			"el proxy respondió con HTTP %d",
+			"el Registry respondió con HTTP %d",
 			response.StatusCode,
 		)
 	}
 
-	var versions []version.Version
-	scanner := bufio.NewScanner(response.Body)
-
-	for scanner.Scan() {
-		rawVersion := strings.TrimSpace(scanner.Text())
-		if rawVersion == "" {
-			continue
-		}
-
-		parsedVersion, err := version.Parse(rawVersion)
-		if err != nil {
-			// Se ignoran las versiones que no reconoce el parser.
-			continue
-		}
-
-		versions = append(versions, parsedVersion)
+	var payload struct {
+		Versions []struct {
+			Version string `json:"version"`
+		} `json:"versions"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		return providers.Result{}, fmt.Errorf("decodificando respuesta del Registry: %w", err)
 	}
 
-	if err := scanner.Err(); err != nil {
-		return providers.Result{}, err
+	var versions []version.Version
+	for _, item := range payload.Versions {
+		parsed, err := version.Parse(item.Version)
+		if err != nil {
+			continue
+		}
+		versions = append(versions, parsed)
 	}
 
 	result := providers.Result{
 		Versions:    versions,
 		Source:      p.baseURL,
 		RetrievedAt: time.Now(),
-		FromCache:   false,
 	}
-
 	if p.cache != nil {
 		_ = p.cache.Set(cacheKey, cache.Entry{
 			Versions:    result.Versions,
@@ -151,9 +145,7 @@ func (p *Provider) AvailableVersions(
 	return result, nil
 }
 
-func (p *Provider) readCache(
-	key string,
-) (cache.Entry, bool, error) {
+func (p *RegistryProvider) readCache(key string) (cache.Entry, bool, error) {
 	if p.cache == nil {
 		return cache.Entry{}, false, nil
 	}
@@ -161,7 +153,7 @@ func (p *Provider) readCache(
 	return p.cache.Get(key)
 }
 
-func cacheResult(entry cache.Entry) providers.Result {
+func registryCacheResult(entry cache.Entry) providers.Result {
 	return providers.Result{
 		Versions:    entry.Versions,
 		Source:      entry.Source,

@@ -28,6 +28,7 @@
 
 ### Changed
 
+
 Añadida nueva meta al README.md
 Cambio en `main.go` para que la salida de CLI sea mas humana y consistente.
 La CLI muestra ahora el estado de la versión detectada.
@@ -86,7 +87,6 @@ Reformulacion del CLI
 
 ### Changed
 
-
 ---
 
 ## [08-10-26]
@@ -108,3 +108,30 @@ Reformulacion del CLI
 
 
 ### Changed
+
+---
+
+
+## [09-10-26]
+
+### Added
+
+- Añadido el adaptador de Terraform mediante `.terraform-version`.
+- Añadido el proveedor de releases oficial de HashiCorp.
+- Integrada la caché común en el proveedor de Terraform.
+- Añadido soporte para `compver scan --tool terraform`.
+- Añadidas pruebas para el detector y proveedor de Terraform.
+- Añadido el detector de `.terraform.lock.hcl`.
+- Añadido el proveedor del Terraform Registry para consultar providers.
+- Añadidas pruebas para providers bloqueados y consultas al Registry.
+- Creado archivo `scan_output.go`.
+- `spinner.go` añadido como metodo de visualizacion durante el analisis.
+
+### Changed
+
+- El proveedor de Go Modules ahora solo procesa dependencias detectadas en
+  archivos `go.mod`.
+
+- Cambiado la logica del archivo `scan.go` para que solo ejecute analisis de versiones.
+- Añadido la logica de agrupar y mostrar los resultados de `scan.go` al archivo `scan_output.go`.
+- Cambios `model.Dependency.Tool` para identificar el grupo que pertenece cada resultado.
