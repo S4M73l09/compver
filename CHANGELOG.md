@@ -156,6 +156,10 @@ Reformulacion del CLI
 - Añadido filtrado común mediante `FilterByConstraint`.  
 - Añadido `Constraints` en el adaptador de Terraform para traducir expresiones de versiones.  
 - Las versiones `Constraints` ahora son genericas, y solo es necesario agregarlas a la herramienta que necesites.
+- Añadido archivo para contribucion `CONTRIBUTING.md`.
+- Añadido archivo de seguridad `SECURITY.md`.
+- Añadido explicacion de como crear PRs `PULL_REQUEST_TEMPLATE.md`.
+- Añadido workflow de validacion `validation-ci.yaml`.
 
 ### Changed
 

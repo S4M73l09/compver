@@ -1,0 +1,57 @@
+name: validation-ci
+
+on:
+  push:
+    branches: 
+      - compver-pre-release
+
+    
+  pull_request:
+    branches:
+      - compver-pre-release
+
+
+permissions:
+  contents: read
+
+
+jobs:
+  validate: 
+    name: Validate Go project
+    runs-on: ubuntu-latest
+
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      - name: Set up go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+
+      - name: Verify dependencies
+        run: go mod verify
+
+
+      - name: Check formatting
+        run: |
+          files=$(gofmt -l .)
+
+
+          if [ -n "$files" ]; then
+            echo "The following files are not formatted:"
+            echo "$files"
+            exit 1
+          fi
+
+
+      - name: Run tests
+        run: go test ./...
+
+
+      - name: Run go vet
+        run: go vet ./...

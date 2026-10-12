@@ -33,7 +33,11 @@ CLI
 ## Estructura del proyecto
 
 ```text
-compver/
+compver-pre-release/
+├── .github/
+│    └── workflows/
+│    │   └── validation-ci.yaml            # Pipeline para verificacion de dependencias y versiones del proyecto.
+│    └── PULL_REQUEST_TEMPLATE.md          # Ejemplo de plantillas para hacer PRs.
 ├── cmd/                                   # Puntos de entrada de los ejecutables.
 │   └── compver/                           # Ejecutable principal de Compver.
 │       └── main.go                        # Inicia la CLI.
@@ -88,6 +92,8 @@ compver/
 ├── README.md                              # Documentación de uso.
 ├── ARCHITECTURE.md                        # Diseño interno del proyecto.
 ├── CHANGELOG.md                           # Historial de cambios.
+├── CONTRIBUTING.md                        # Explicacion para contribuir al proyecto.
+├── SECURITY.md                            # Explica el uso correcto para la seguridad del proyecto.
 ├── LICENSE                                # Licencia Apache 2.0.
 └── go.mod                                 # Definición del módulo Go.
 ```
