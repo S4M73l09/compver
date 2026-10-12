@@ -70,8 +70,13 @@ func printDependency(
 		dependencyType = "indirecta"
 	}
 
-	selectedVersions := version.Select(
+	compatibleVersions := version.FilterByConstraint(
 		dependency.AvailableVersions,
+		dependency.Constraint,
+	)
+
+	selectedVersions := version.Select(
+		compatibleVersions,
 		version.SelectionOptions{
 			Limit:              options.Limit,
 			IncludePreReleases: options.IncludePreReleases,
@@ -99,7 +104,7 @@ func printDependency(
 	fmt.Printf(
 		"%-45s %-15s %-12s %-12s %-12s %s\n",
 		dependency.Name,
-		dependency.CurrentVersion,
+		displayVersion(dependency),
 		dependencyType,
 		dependency.VersionKind,
 		availableVersions,
@@ -118,4 +123,12 @@ func printDependency(
 	if comparison.Latest != nil {
 		fmt.Printf("  Última disponible: %s\n", comparison.Latest.String())
 	}
+}
+
+func displayVersion(dependency model.Dependency) string {
+	if !dependency.Constraint.Empty() {
+		return dependency.CurrentVersion
+	}
+
+	return dependency.CurrentVersion
 }

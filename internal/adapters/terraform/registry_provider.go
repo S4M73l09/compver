@@ -40,7 +40,8 @@ func (RegistryProvider) CanHandle(dependency model.Dependency) bool {
 	return strings.HasPrefix(
 		dependency.Name,
 		"registry.terraform.io/",
-	) && strings.HasSuffix(dependency.Source, ".terraform.lock.hcl")
+	) && (strings.HasSuffix(dependency.Source, ".terraform.lock.hcl") ||
+		strings.HasSuffix(dependency.Source, ".tf"))
 }
 
 func (p *RegistryProvider) AvailableVersions(

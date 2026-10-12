@@ -20,6 +20,7 @@ func NewAnalyzer(tool string) (*engine.Engine, error) {
 	}
 	if tool == "" || tool == "terraform" {
 		detectors = append(detectors, terraformadapter.New())
+		detectors = append(detectors, terraformadapter.NewConfigDetector())
 	}
 
 	analyzer := engine.New(detectors...)

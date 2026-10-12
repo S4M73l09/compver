@@ -47,6 +47,9 @@ compver/
 │   │   └── terraform/                     # Adaptador para Terraform.
 │   │       ├── detector.go                # Detecta la versión de Terraform.
 │   │       ├── detector_test.go           # Tests del detector de Terraform.
+│   │       ├── config_detector.go         # Lee restricciones desde archivos .tf.
+│   │       ├── config_detector_test.go    # Tests de restricciones.
+│   │       ├── constraints.go             # Normaliza restricciones Terraform.
 │   │       ├── lock_detector.go           # Lee versiones desde .terraform.lock.hcl.
 │   │       ├── lock_detector_test.go      # Tests del detector de bloqueo.
 │   │       ├── provider.go                # Consulta releases de Terraform.
@@ -64,7 +67,7 @@ compver/
 │   │   ├── help.go                        # Muestra la ayuda.
 │   │   ├── scan.go                        # Ejecuta el análisis.
 │   │   ├── scan_options.go                # Procesa las opciones de scan.
-│   │   ├── scan_output.go                 # Agrupa y muestra resultados.
+│   │   ├── scan_output.go                 # Agrupa, filtra y muestra resultados.
 │   │   ├── spinner.go                     # Muestra progreso durante el análisis.
 │   │   └── version.go                     # Muestra la versión de Compver.
 │   ├── engine/                            # Motor genérico de análisis.
@@ -79,7 +82,9 @@ compver/
 │       ├── version_test.go                # Tests de versiones.
 │       ├── selector.go                    # Selección y filtrado.
 │       ├── comparison.go                  # Comparación de versiones.
-│       └── comparison_test.go             # Tests de comparación.
+│       ├── comparison_test.go             # Tests de comparación.
+│       ├── constraint.go                  # Restricciones normalizadas.
+│       └── constraint_test.go             # Tests de restricciones.
 ├── README.md                              # Documentación de uso.
 ├── ARCHITECTURE.md                        # Diseño interno del proyecto.
 ├── CHANGELOG.md                           # Historial de cambios.
@@ -171,6 +176,10 @@ distingue entre dependencias directas e indirectas.
 El detector de Terraform analiza archivos `.terraform-version` y obtiene la
 versión fijada del binario de Terraform.
 
+El detector de configuración analiza bloques `required_providers` en archivos
+`*.tf`. Extrae la fuente del provider y conserva restricciones como `~> 5.0`,
+`>= 3.0` o listas de restricciones.
+
 El detector de bloqueo analiza `.terraform.lock.hcl` y obtiene las versiones
 exactas seleccionadas para los providers del proyecto.
 
@@ -200,7 +209,7 @@ Para los providers, el adaptador consulta el Terraform Registry:
 https://registry.terraform.io/v1/providers/{namespace}/{name}/versions
 ```
 
-El proveedor extrae versiones estables y pre-releases del listado, dejando
+Los proveedores extraen versiones estables y pre-releases de sus listados, dejando
 que el selector común decida cuáles se muestran.
 
 El flujo es:
@@ -298,6 +307,8 @@ separados para el binario y sus providers:
 internal/adapters/terraform/
 ├── detector.go
 ├── detector_test.go
+├── config_detector.go
+├── config_detector_test.go
 ├── lock_detector.go
 ├── lock_detector_test.go
 ├── provider.go
@@ -306,8 +317,8 @@ internal/adapters/terraform/
 └── registry_provider_test.go
 ```
 
-El siguiente paso será analizar restricciones declaradas en archivos `*.tf`
-y verificar los plugins instalados en `.terraform/providers`.
+El siguiente paso será verificar los plugins instalados en
+`.terraform/providers`.
 
 El motor no debería modificarse. Solo sería necesario:
 
@@ -395,10 +406,10 @@ Compver puede actualmente:
 - Consultar releases de Terraform mediante el proveedor oficial de HashiCorp.
 - Detectar providers y versiones bloqueadas desde `.terraform.lock.hcl`.
 - Consultar versiones de providers mediante el Terraform Registry.
+- Detectar restricciones declaradas en bloques `required_providers`.
 
 Está previsto añadir:
 
-- Analizar restricciones de providers en archivos `*.tf`.
 - Inspeccionar providers instalados en `.terraform/providers`.
 - Soporte para npm.
 - Salida JSON.

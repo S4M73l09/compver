@@ -135,3 +135,30 @@ Reformulacion del CLI
 - Cambiado la logica del archivo `scan.go` para que solo ejecute analisis de versiones.
 - Añadido la logica de agrupar y mostrar los resultados de `scan.go` al archivo `scan_output.go`.
 - Cambios `model.Dependency.Tool` para identificar el grupo que pertenece cada resultado.
+
+---
+
+
+## [12-10-26]
+
+### Added
+
+- Añadido el detector de restricciones `required_providers` en archivos `.tf`.
+- Añadido el campo `Constraint` al modelo de dependencias.
+- Modificado y añadido diferentes condiciones normalizadas. Agregando soporte para versiones: 
+    * `=`  
+    * `!=`  
+    * `>`  
+    * `>=`  
+    * `<`  
+    * `<=`  
+    * `~>`  
+- Añadido filtrado común mediante `FilterByConstraint`.  
+- Añadido `Constraints` en el adaptador de Terraform para traducir expresiones de versiones.  
+- Las versiones `Constraints` ahora son genericas, y solo es necesario agregarlas a la herramienta que necesites.
+
+### Changed
+
+- Modificado `config_detector.go` para convertir las restricciones de `*tf`.  
+- Modificado `scan_output.go` para mostrar únicamente las versiones compatibles.  
+- Modificado los diferentes Tests del motor de restricciones y del parser de Terraform.  

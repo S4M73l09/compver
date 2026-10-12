@@ -6,6 +6,7 @@ type Dependency struct {
 	Tool              string
 	Name              string
 	CurrentVersion    string
+	Constraint        version.Constraint
 	Source            string
 	Indirect          bool
 	VersionKind       version.Kind
