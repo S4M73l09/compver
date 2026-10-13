@@ -32,11 +32,12 @@ Su funcion ira evolucionando en funcion a como avance el proyecto.
 
 ### Comandos y funciones
 
-***compver*** usa una serie de comandos para controlar de mejor manera el funcionamiento de este:
-
-Podemos invocar ***compver*** con el comando para analizar el directorio actual:
+`compver` analiza un directorio, detecta las herramientas y dependencias
+presentes, consulta versiones disponibles y compara la versión actual con las
+versiones publicadas y compatibles.
 
 #### Analizar un proyecto
+
 ```bash
 compver scan [ruta]
 ```
@@ -47,39 +48,136 @@ Si no se indica una ruta, se analiza el directorio actual:
 compver scan
 ```
 
-#### Atajo de análisis
+También existe un atajo para realizar un análisis:
 
-Estas formas son equivalente:
 ```bash
 compver
 compver .
 compver /ruta/al/proyecto
+```
+
+Estas formas son equivalentes:
+
+```bash
+compver scan .
 compver scan /ruta/al/proyecto
-compver scan --tool terraform --limit 6 /ruta/proyecto
-compver scan --tool terraform --limit 3 --include-pre-releases
 ```
 
-El argumento `--tool` se puede juntar con cualquier comando mostrado junto con los demas argumentos. En este caso se usa de ejemplo `Terraform`.
+#### Seleccionar una herramienta
 
-Todas ejecutan un análisis básico de la ruta indicada.
-
-##### Argumentos añadidos al scan
-
-Se añadieron estos argumentos para el comando anterior.
+Actualmente se puede limitar el análisis a Go o Terraform:
 
 ```bash
-compver scan --limit <Numero> .
-compver scan --include-pre-releases .
-compver scan --all-versions .
+compver scan . --tool go
+compver scan . --tool terraform
 ```
-Esto nos permite mejorar la auditoria de versiones de alguna herramienta o carpeta.
 
-A su vez se añadieron argumentos que se encargan de guardar el cache de la consulta de versiones, para no depender exclusivamente de Internet:
+Si no se indica `--tool`, Compver analiza todas las herramientas compatibles
+detectadas en la ruta.
+
+#### Controlar las versiones mostradas
+
+Por defecto se muestran las tres versiones estables más recientes:
 
 ```bash
-compver scan --offline .
-compver scan --refresh .
+compver scan . --limit 3
 ```
+
+Para mostrar un número diferente:
+
+```bash
+compver scan . --limit 6
+```
+
+Para incluir versiones alpha, beta, rc y otras pre-releases:
+
+```bash
+compver scan . --include-prereleases
+```
+
+Para mostrar todas las versiones disponibles:
+
+```bash
+compver scan . --all-versions
+```
+
+Estas opciones pueden combinarse:
+
+```bash
+compver scan . \
+  --tool terraform \
+  --limit 10 \
+  --include-prereleases
+```
+
+#### Mostrar información adicional
+
+La salida por defecto es resumida. Se pueden solicitar secciones adicionales
+mediante `--show`.
+
+Mostrar releases seleccionadas:
+
+```bash
+compver scan . --show releases
+```
+
+Mostrar información del ciclo de vida y soporte:
+
+```bash
+compver scan . --show lifecycle
+```
+
+Mostrar vulnerabilidades conocidas:
+
+```bash
+compver scan . --show vulnerabilities
+```
+
+Mostrar fuentes y estado de la caché:
+
+```bash
+compver scan . --show sources
+```
+
+También pueden combinarse varias secciones separándolas por comas:
+
+```bash
+compver scan . \
+  --show lifecycle,vulnerabilities,sources,releases
+```
+
+Las secciones disponibles son:
+
+- `releases`: versiones seleccionadas y sus metadatos.
+- `lifecycle`: estado de soporte y fecha de fin de soporte.
+- `vulnerabilities`: vulnerabilidades conocidas y versiones que las corrigen.
+- `sources`: fuentes consultadas, observaciones detectadas y estado de la
+  caché.
+
+#### Caché y conectividad
+
+Compver utiliza una caché común para reducir consultas externas y permitir
+análisis en proyectos con conectividad limitada.
+
+Usar automáticamente la caché cuando sea válida:
+
+```bash
+compver scan .
+```
+
+Analizar únicamente con información almacenada en caché:
+
+```bash
+compver scan . --offline
+```
+
+Ignorar la caché y consultar de nuevo las fuentes disponibles:
+
+```bash
+compver scan . --refresh
+```
+
+`--offline` y `--refresh` no pueden utilizarse al mismo tiempo.
 
 #### Mostrar la versión
 ```bash
@@ -93,30 +191,53 @@ compver -h
 compver --help
 ```
 
-### Ejemplo 
+### Ejemplo
 ```text
-$ compver scan .
+$ compver scan . --show lifecycle,vulnerabilities,sources
 
 Ruta analizada: .
 Dependencias encontradas: 2
 
-Nombre                                        Versión         Tipo         Estado
-------                                        -------         ----         ------
-github.com/example/library                    v1.2.3          directa      stable
-golang.org/x/text                             v0.14.0         indirecta    beta
+=== GO ===
+Nombre                                        Version         Tipo         Estado       Disponibles  Mostradas
+------                                        -------         ----         ------       -----------  ---------
+golang.org/x/text                             v0.14.0         directa      update-available 12           3
+  Fuente del detector: go.mod
+  Fuente de versiones: https://proxy.golang.org (red)
+  Fuente de lifecycle: no disponible
+  Fuente de seguridad: https://api.osv.dev/v1/query (red)
+  Lifecycle: unknown
+  Vulnerabilidades: ninguna conocida
+  Estado: update-available
+  Última publicada: v0.16.0
+  Última compatible: v0.16.0
+
+=== TERRAFORM ===
+Nombre                                        Version         Tipo         Estado       Disponibles  Mostradas
+------                                        -------         ----         ------       -----------  ---------
+hashicorp/aws                                 v5.0.0          directa      current      20           3
+  Fuente del detector: main.tf
+  Fuente de versiones: https://registry.terraform.io (caché)
+  Fuente de lifecycle: https://endoflife.date/api/terraform.json (red)
+  Fuente de seguridad: https://api.osv.dev/v1/query (red)
+  Lifecycle: active
+  Vulnerabilidades: ninguna conocida
+  Estado: current
+  Última publicada: v5.0.0
+  Última compatible: v5.0.0
 ```
 
-#### Opciones previstas
+#### Opciones disponibles
 
-Está previsto añadir opciones para personalizar el análisis:
-
-```bash
-compver scan /ruta --include-prereleases
-compver scan /ruta --only-outdated
-compver scan /ruta --format-json
-```
-
-Estas opciones todavía están en desarrollo.
+| Opción | Función |
+|---|---|
+| `--tool <nombre>` | Analiza únicamente una herramienta compatible. |
+| `--limit <número>` | Limita el número de versiones mostradas. |
+| `--all-versions` | Muestra todas las versiones disponibles. |
+| `--include-prereleases` | Incluye alpha, beta, rc y otras pre-releases. |
+| `--show <secciones>` | Muestra información adicional. |
+| `--offline` | Utiliza únicamente datos almacenados en caché. |
+| `--refresh` | Ignora la caché y consulta de nuevo las fuentes externas. |
 
 ---
 
@@ -143,5 +264,4 @@ Tambien debido a la amplia magnitud de dispositivos que usan dicho Lenguaje, tod
     Crear binarios GO en pre-releases.  
     Verificacion.  
     Lanzar 1.0 en rama main.  
-
 

@@ -56,6 +56,8 @@ compver-pre-release/
 │   │       ├── constraints.go             # Normaliza restricciones Terraform.
 │   │       ├── lock_detector.go           # Lee versiones desde .terraform.lock.hcl.
 │   │       ├── lock_detector_test.go      # Tests del detector de bloqueo.
+│   │       ├── installed_provider_detector.go      # Detecta providers instalados localmente.
+│   │       ├── installed_provider_detector_test.go # Tests de providers instalados.
 │   │       ├── provider.go                # Consulta releases de Terraform.
 │   │       ├── provider_test.go           # Tests del proveedor de Terraform.
 │   │       ├── registry_provider.go       # Consulta providers del Registry.
@@ -76,9 +78,11 @@ compver-pre-release/
 │   │   └── version.go                     # Muestra la versión de Compver.
 │   ├── engine/                            # Motor genérico de análisis.
 │   │   ├── engine.go                      # Coordina detectores y proveedores.
+│   │   ├── correlation.go                 # Agrupa observaciones de una dependencia.
+│   │   ├── correlation_test.go            # Tests de correlación.
 │   │   └── engine_test.go                 # Tests del motor.
 │   ├── model/                             # Modelos de datos compartidos.
-│   │   └── model.go                       # Dependencias y resultados.
+│   │   └── model.go                       # Dependencias, observaciones y resultados.
 │   ├── providers/                         # Contratos de proveedores externos.
 │   │   └── provider.go                    # Interfaz y opciones de consulta.
 │   └── version/                           # Lógica común de versiones.
@@ -146,8 +150,9 @@ Es el núcleo de Compver. Se encarga de:
 
 - Recorrer la ruta indicada.
 - Ejecutar los detectores registrados.
+- Correlacionar observaciones de una misma dependencia por herramienta y nombre.
 - Analizar las versiones actuales.
-- Ejecutar los proveedores compatibles.
+- Ejecutar una vez los proveedores compatibles para cada dependencia unificada.
 - Guardar las versiones disponibles.
 - Conservar errores individuales sin detener todo el análisis.
 - Devolver un resultado estructurado.
@@ -172,6 +177,14 @@ type Provider interface {
 }
 ```
 
+### Correlación de dependencias
+
+Los detectores pueden encontrar la misma dependencia en varios archivos o
+directorios. `correlation.go` agrupa esas observaciones por `Tool + Name` y
+conserva la información de cada fuente. De esta forma, el proveedor externo
+se consulta una sola vez y la CLI puede comparar las versiones declarada,
+bloqueada e instalada en un único resultado.
+
 ## Detectores
 
 Los detectores identifican dependencias y versiones dentro del filesystem.
@@ -188,6 +201,15 @@ El detector de configuración analiza bloques `required_providers` en archivos
 
 El detector de bloqueo analiza `.terraform.lock.hcl` y obtiene las versiones
 exactas seleccionadas para los providers del proyecto.
+
+El detector de providers instalados analiza las rutas bajo
+`.terraform/providers`. Obtiene el origen del provider y la versión del
+directorio que contiene el binario descargado, por ejemplo:
+
+```text
+.terraform/providers/registry.terraform.io/hashicorp/aws/5.31.0/linux_amd64/
+└── terraform-provider-aws_v5.31.0_x5
+```
 
 El detector no consulta Internet. Su responsabilidad termina cuando devuelve
 los datos encontrados en el proyecto.
@@ -296,6 +318,20 @@ compver scan --all-versions .
 Cada dependencia puede contener la versión actual, las versiones disponibles,
 la fuente consultada y los errores asociados a la consulta.
 
+Cuando una herramienta tiene varias fuentes de información, el modelo conserva
+cada observación mediante `VersionObservation`:
+
+```text
+constraint → restricción declarada en *.tf
+locked     → versión seleccionada en .terraform.lock.hcl
+installed  → versión encontrada en .terraform/providers
+current    → versión actual de otros adaptadores
+```
+
+El motor agrupa las observaciones mediante `Tool + Name`. Así, las tres
+fuentes de un provider Terraform se muestran como una sola dependencia sin
+perder su origen.
+
 La diferencia entre versiones disponibles y seleccionadas es importante:
 
 ```text
@@ -307,7 +343,7 @@ SelectedVersions  → versiones filtradas para mostrar al usuario
 
 Para añadir otra herramienta se crearían un detector y un proveedor
 específicos. El adaptador de Terraform contiene detectores y proveedores
-separados para el binario y sus providers:
+separados para el binario y sus providers. Actualmente incluye:
 
 ```text
 internal/adapters/terraform/
@@ -317,14 +353,13 @@ internal/adapters/terraform/
 ├── config_detector_test.go
 ├── lock_detector.go
 ├── lock_detector_test.go
+├── installed_provider_detector.go
+├── installed_provider_detector_test.go
 ├── provider.go
 ├── provider_test.go
 ├── registry_provider.go
 └── registry_provider_test.go
 ```
-
-El siguiente paso será verificar los plugins instalados en
-`.terraform/providers`.
 
 El motor no debería modificarse. Solo sería necesario:
 
@@ -413,10 +448,12 @@ Compver puede actualmente:
 - Detectar providers y versiones bloqueadas desde `.terraform.lock.hcl`.
 - Consultar versiones de providers mediante el Terraform Registry.
 - Detectar restricciones declaradas en bloques `required_providers`.
+- Detectar providers instalados en `.terraform/providers`.
+- Correlacionar restricciones, versiones bloqueadas e instaladas.
+- Mostrar las observaciones de cada fuente en una dependencia unificada.
 
 Está previsto añadir:
 
-- Inspeccionar providers instalados en `.terraform/providers`.
 - Soporte para npm.
 - Salida JSON.
 - Interfaz CLI con colores y tablas.

@@ -166,3 +166,98 @@ Reformulacion del CLI
 - Modificado `config_detector.go` para convertir las restricciones de `*tf`.  
 - Modificado `scan_output.go` para mostrar únicamente las versiones compatibles.  
 - Modificado los diferentes Tests del motor de restricciones y del parser de Terraform.  
+
+
+---
+
+## [13-10-26]
+
+### Added
+
+- Añadido archivo `installed_provider_detector.go` en adaptador Terraform.  
+- Añadido archivo `installed_provider_detector_test.go` en adaptador Terraform.  
+- Añadido el detector de providers instalados de Terraform mediante la carpeta
+  `.terraform/providers`.  
+- Añadida la correlación de dependencias detectadas por distintas fuentes,
+  agrupándolas por herramienta y nombre.  
+- Añadido soporte para observaciones de versión:  
+  - Restricción declarada.  
+  - Versión bloqueada.  
+  - Versión instalada.  
+- Añadida la comparación explícita entre la versión instalada, bloqueada o
+  declarada y las versiones disponibles.  
+- Añadido el modelo `ReleaseInfo` para representar información detallada de
+  cada versión:  
+  - Ciclo de versión.  
+  - Fecha de publicación.  
+  - Estado de soporte.  
+  - Fecha de fin de soporte.  
+  - Vulnerabilidades asociadas.  
+- Añadido el evaluador central de versiones con estados:  
+  - `current`.  
+  - `update-available`.  
+  - `compatible-update-available`.  
+  - `deprecated`.  
+  - `end-of-life`.  
+  - `vulnerable`.  
+  - `vulnerable-update-available`.  
+- Añadido soporte para proveedores de lifecycle.  
+- Añadido proveedor de lifecycle para Terraform mediante `endoflife.date`.  
+- Añadido proveedor de información de publicación para providers de Terraform
+  mediante GitHub Releases.  
+- Añadido soporte para providers de vulnerabilidades.  
+- Añadido proveedor de vulnerabilidades para Go Modules mediante OSV.  
+- Añadido proveedor de vulnerabilidades para Terraform mediante OSV.  
+- Añadida información de versiones corregidas para las vulnerabilidades
+  detectadas.  
+- Ampliado el sistema de caché para almacenar releases, lifecycle y
+  vulnerabilidades.  
+- Añadido soporte de caché para los modos:  
+  - Automático.  
+  - `--offline`.  
+  - `--refresh`.  
+- Añadida la opción `--show` para controlar el nivel de detalle de la salida:  
+  - `lifecycle`.  
+  - `vulnerabilities`.  
+  - `sources`.  
+  - `releases`.  
+- Añadida la posibilidad de combinar secciones mediante comas:  
+  `--show lifecycle,vulnerabilities,sources`.  
+- Añadida la visualización de metadatos de releases seleccionadas.  
+- Añadida la visualización de fuentes de detección, versiones, lifecycle y
+  seguridad.  
+- Añadida la visualización del estado de caché de cada proveedor.  
+- Añadida la visualización de vulnerabilidades y versiones en las que fueron
+  corregidas.  
+
+### Changed
+
+- Modificado motor para separar las fases de:  
+    - Detección.  
+    - Correlación.  
+    - Consulta de versiones.  
+    - Enriquecimiento de lifecycle.  
+    - Consulta de vulnerabilidades.  
+    - Evaluación final.  
+- Modificando el analizador central para registrar detectores y proveedores de forma modular.  
+- Modificado el adaptador de Terraform para analizar:  
+    - Archivos `.tf`.  
+    - `.terraform.lock.hcl`.  
+    - `.terraform-version`.  
+    - Providers instalados dentro de `.terraform/providers`.  
+- Modificado el adaptador de Go para conservar la información de dependencias directas o indirectas.  
+- Modificada la salida de la CLI para agrupar los resultados por herramienta.  
+- La salida por defecto de la CLI ahora es mas compacta.  
+- Los detalles de lifecycle, vulnerabilidades, fuentes y releases se muestran bajo demanda mediante `--show`.  
+- Modificado el sistema de evaluación para distinguir entre la ultima versión publicada y la última versión compatible con las restricciones del proyecto.  
+- Modificada la comparación para priorizar la versión instalada o bloqueada cuando está disponible.  
+- Modificados los proveedores para reutilizar resultados almacenados en caché cuando corresponde.  
+
+### Fixed
+
+- Corregidos errores de sintaxis y orientación en la ejecución del análisis.  
+- Corregida la selección de versiones compatibles con las restricciones declaradas.  
+- Corregida la agrupación de dependencias procedentes de diferentes fuentes.  
+- Corregida la representación de versiones estables y pre-release.  
+- Corregida la conservación de información de releases al utilizar caché.  
+- Corregida la salida de errores de proveedores y consultas externas.  
