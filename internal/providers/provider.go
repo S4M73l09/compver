@@ -23,6 +23,7 @@ type QueryOptions struct {
 
 type Result struct {
 	Versions    []version.Version
+	Releases    []model.ReleaseInfo
 	Source      string
 	RetrievedAt time.Time
 	FromCache   bool
