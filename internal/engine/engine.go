@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/S4M73l09/compver/internal/evaluator"
 	"github.com/S4M73l09/compver/internal/model"
 	"github.com/S4M73l09/compver/internal/providers"
 	"github.com/S4M73l09/compver/internal/version"
@@ -18,8 +19,10 @@ type Detector interface {
 }
 
 type Engine struct {
-	detectors []Detector
-	providers []providers.Provider
+	detectors              []Detector
+	providers              []providers.Provider
+	lifecycleProviders     []providers.LifecycleProvider
+	vulnerabilityProviders []providers.VulnerabilityProvider
 }
 
 func New(detectors ...Detector) *Engine {
@@ -38,6 +41,18 @@ func (e *Engine) Analyze(root string) (model.AnalysisResult, error) {
 
 func (e *Engine) AddProvider(provider providers.Provider) {
 	e.providers = append(e.providers, provider)
+}
+
+func (e *Engine) AddLifecycleProvider(
+	provider providers.LifecycleProvider,
+) {
+	e.lifecycleProviders = append(e.lifecycleProviders, provider)
+}
+
+func (e *Engine) AddVulnerabilityProvider(
+	provider providers.VulnerabilityProvider,
+) {
+	e.vulnerabilityProviders = append(e.vulnerabilityProviders, provider)
 }
 
 func (e *Engine) AnalyzeContext(
@@ -80,6 +95,8 @@ func (e *Engine) AnalyzeContextWithOptions(
 		Path: root,
 	}
 
+	var detectedDependencies []model.Dependency
+
 	err = filepath.WalkDir(root, func(
 		path string,
 		entry fs.DirEntry,
@@ -113,40 +130,8 @@ func (e *Engine) AnalyzeContextWithOptions(
 				return fmt.Errorf("analizando %s: %w", path, err)
 			}
 
-			for index := range dependencies {
-				parsedVersion, parseErr := version.Parse(
-					dependencies[index].CurrentVersion,
-				)
-				if parseErr != nil {
-					dependencies[index].VersionKind = version.Unknown
-				} else {
-					dependencies[index].VersionKind = parsedVersion.Kind()
-				}
-
-				for _, provider := range e.providers {
-					if !provider.CanHandle(dependencies[index]) {
-						continue
-					}
-
-					providerResult, providerErr := provider.AvailableVersions(
-						ctx,
-						dependencies[index],
-						options,
-					)
-					if providerErr != nil {
-						dependencies[index].ProviderError = providerErr.Error()
-						break
-					}
-
-					dependencies[index].AvailableVersions = providerResult.Versions
-					dependencies[index].ProviderSource = providerResult.Source
-					dependencies[index].ProviderFromCache = providerResult.FromCache
-					break
-				}
-			}
-
-			result.Dependencies = append(
-				result.Dependencies,
+			detectedDependencies = append(
+				detectedDependencies,
 				dependencies...,
 			)
 
@@ -160,5 +145,103 @@ func (e *Engine) AnalyzeContextWithOptions(
 		return model.AnalysisResult{}, err
 	}
 
+	result.Dependencies = MergeDependencies(detectedDependencies)
+
+	for index := range result.Dependencies {
+		dependency := &result.Dependencies[index]
+		currentVersion := comparableVersion(*dependency)
+
+		parsedVersion, parseErr := version.Parse(currentVersion)
+		if parseErr != nil {
+			dependency.VersionKind = version.Unknown
+		} else {
+			dependency.VersionKind = parsedVersion.Kind()
+		}
+
+		for _, provider := range e.providers {
+			if !provider.CanHandle(*dependency) {
+				continue
+			}
+
+			providerResult, providerErr := provider.AvailableVersions(
+				ctx,
+				*dependency,
+				options,
+			)
+			if providerErr != nil {
+				dependency.ProviderError = providerErr.Error()
+				break
+			}
+
+			dependency.AvailableVersions = providerResult.Versions
+			dependency.AvailableReleases = providerResult.Releases
+			dependency.ProviderSource = providerResult.Source
+			dependency.ProviderFromCache = providerResult.FromCache
+			break
+		}
+
+		for _, lifecycleProvider := range e.lifecycleProviders {
+			if !lifecycleProvider.CanHandle(*dependency) {
+				continue
+			}
+
+			lifecycleResult, lifecycleErr := lifecycleProvider.Lifecycle(
+				ctx,
+				*dependency,
+				options,
+			)
+			if lifecycleErr != nil {
+				dependency.LifecycleError = lifecycleErr.Error()
+				break
+			}
+
+			dependency.AvailableReleases = mergeReleaseInfo(
+				dependency.AvailableVersions,
+				dependency.AvailableReleases,
+				lifecycleResult.Releases,
+			)
+			dependency.LifecycleSource = lifecycleResult.Source
+			dependency.LifecycleFromCache = lifecycleResult.FromCache
+			break
+		}
+
+		for _, vulnerabilityProvider := range e.vulnerabilityProviders {
+			if !vulnerabilityProvider.CanHandle(*dependency) {
+				continue
+			}
+
+			vulnerabilityResult, vulnerabilityErr := vulnerabilityProvider.Check(
+				ctx,
+				*dependency,
+				options,
+			)
+			if vulnerabilityErr != nil {
+				dependency.VulnerabilityError = vulnerabilityErr.Error()
+				break
+			}
+
+			dependency.Vulnerabilities = vulnerabilityResult.Vulnerabilities
+			dependency.VulnerabilitySource = vulnerabilityResult.Source
+			dependency.VulnerabilityFromCache = vulnerabilityResult.FromCache
+			attachVulnerabilities(dependency)
+			break
+		}
+
+		computedEvaluation := evaluator.Evaluate(*dependency)
+		dependency.Evaluation = &computedEvaluation
+	}
+
 	return result, nil
+}
+
+func comparableVersion(dependency model.Dependency) string {
+	for _, role := range []string{"installed", "locked", "current"} {
+		for _, observation := range dependency.Observations {
+			if observation.Role == role {
+				return observation.Version
+			}
+		}
+	}
+
+	return dependency.CurrentVersion
 }

@@ -98,6 +98,11 @@ func (ConfigDetector) Detect(path string) ([]model.Dependency, error) {
 					CurrentVersion: constraint,
 					Constraint:     parsedConstraint,
 					Source:         path,
+					Observations: []model.VersionObservation{{
+						Role:    "constraint",
+						Version: constraint,
+						Source:  path,
+					}},
 				})
 			}
 

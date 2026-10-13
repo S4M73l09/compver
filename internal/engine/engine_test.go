@@ -15,6 +15,8 @@ type fakeDetector struct{}
 
 type fakeProvider struct{}
 
+type fakeLifecycleProvider struct{}
+
 func (fakeDetector) CanHandle(path string) bool {
 	return filepath.Base(path) == "example.txt"
 }
@@ -46,6 +48,29 @@ func (fakeProvider) AvailableVersions(
 	return providers.Result{
 		Versions: []version.Version{latest},
 		Source:   "fake-provider",
+	}, nil
+}
+
+func (fakeLifecycleProvider) CanHandle(model.Dependency) bool {
+	return true
+}
+
+func (fakeLifecycleProvider) Lifecycle(
+	context.Context,
+	model.Dependency,
+	providers.QueryOptions,
+) (providers.LifecycleResult, error) {
+	release, err := version.Parse("1.0.0")
+	if err != nil {
+		return providers.LifecycleResult{}, err
+	}
+
+	return providers.LifecycleResult{
+		Releases: []model.ReleaseInfo{{
+			Version: release,
+			Support: model.SupportEOL,
+		}},
+		Source: "fake-lifecycle-provider",
 	}, nil
 }
 
@@ -89,5 +114,39 @@ func TestAnalyzeUsesDetectors(t *testing.T) {
 
 	if result.Dependencies[0].ProviderSource != "fake-provider" {
 		t.Fatalf("fuente inesperada: %s", result.Dependencies[0].ProviderSource)
+	}
+}
+
+func TestAnalyzeUsesLifecycleProviders(t *testing.T) {
+	root := t.TempDir()
+
+	err := os.WriteFile(
+		filepath.Join(root, "example.txt"),
+		[]byte("example"),
+		0644,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	engine := New(fakeDetector{})
+	engine.AddLifecycleProvider(fakeLifecycleProvider{})
+
+	result, err := engine.Analyze(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dependency := result.Dependencies[0]
+	if dependency.LifecycleSource != "fake-lifecycle-provider" {
+		t.Fatalf("fuente lifecycle inesperada: %s", dependency.LifecycleSource)
+	}
+
+	if dependency.Evaluation == nil {
+		t.Fatal("se esperaba una evaluación")
+	}
+
+	if dependency.Evaluation.Status != model.StatusEndOfLife {
+		t.Fatalf("estado inesperado: %s", dependency.Evaluation.Status)
 	}
 }

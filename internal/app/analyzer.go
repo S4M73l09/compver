@@ -19,8 +19,12 @@ func NewAnalyzer(tool string) (*engine.Engine, error) {
 		detectors = append(detectors, gomodadapter.New())
 	}
 	if tool == "" || tool == "terraform" {
-		detectors = append(detectors, terraformadapter.New())
-		detectors = append(detectors, terraformadapter.NewConfigDetector())
+		detectors = append(detectors,
+			terraformadapter.New(),
+			terraformadapter.NewConfigDetector(),
+			terraformadapter.NewLockDetector(),
+			terraformadapter.NewInstalledProviderDetector(),
+		)
 	}
 
 	analyzer := engine.New(detectors...)
@@ -46,6 +50,34 @@ func NewAnalyzer(tool string) (*engine.Engine, error) {
 	analyzer.AddProvider(
 		terraformadapter.NewRegistryProvider(
 			"https://registry.terraform.io",
+			nil,
+			providerCache,
+		),
+	)
+	analyzer.AddLifecycleProvider(
+		terraformadapter.NewLifecycleProvider(
+			"https://endoflife.date/api/terraform.json",
+			nil,
+			providerCache,
+		),
+	)
+	analyzer.AddVulnerabilityProvider(
+		gomodadapter.NewVulnerabilityProvider(
+			"https://api.osv.dev/v1/query",
+			nil,
+			providerCache,
+		),
+	)
+	analyzer.AddVulnerabilityProvider(
+		terraformadapter.NewVulnerabilityProvider(
+			"https://api.osv.dev/v1/query",
+			nil,
+			providerCache,
+		),
+	)
+	analyzer.AddLifecycleProvider(
+		terraformadapter.NewProviderLifecycleProvider(
+			"https://api.github.com",
 			nil,
 			providerCache,
 		),

@@ -135,6 +135,7 @@ func (p *Provider) AvailableVersions(
 
 	result := providers.Result{
 		Versions:    versions,
+		Releases:    model.ReleaseInfosFromVersions(versions),
 		Source:      p.baseURL,
 		RetrievedAt: time.Now(),
 		FromCache:   false,
@@ -143,6 +144,7 @@ func (p *Provider) AvailableVersions(
 	if p.cache != nil {
 		_ = p.cache.Set(cacheKey, cache.Entry{
 			Versions:    result.Versions,
+			Releases:    result.Releases,
 			Source:      result.Source,
 			RetrievedAt: result.RetrievedAt,
 		})
@@ -162,8 +164,14 @@ func (p *Provider) readCache(
 }
 
 func cacheResult(entry cache.Entry) providers.Result {
+	releases := entry.Releases
+	if len(releases) == 0 {
+		releases = model.ReleaseInfosFromVersions(entry.Versions)
+	}
+
 	return providers.Result{
 		Versions:    entry.Versions,
+		Releases:    releases,
 		Source:      entry.Source,
 		RetrievedAt: entry.RetrievedAt,
 		FromCache:   true,

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -37,11 +38,18 @@ func NewRegistryProvider(
 }
 
 func (RegistryProvider) CanHandle(dependency model.Dependency) bool {
+	source := filepath.ToSlash(dependency.Source)
+	isInstalledProvider := strings.Contains(
+		source,
+		"/.terraform/providers/",
+	)
+
 	return strings.HasPrefix(
 		dependency.Name,
 		"registry.terraform.io/",
 	) && (strings.HasSuffix(dependency.Source, ".terraform.lock.hcl") ||
-		strings.HasSuffix(dependency.Source, ".tf"))
+		strings.HasSuffix(dependency.Source, ".tf") ||
+		isInstalledProvider)
 }
 
 func (p *RegistryProvider) AvailableVersions(
@@ -132,12 +140,14 @@ func (p *RegistryProvider) AvailableVersions(
 
 	result := providers.Result{
 		Versions:    versions,
+		Releases:    model.ReleaseInfosFromVersions(versions),
 		Source:      p.baseURL,
 		RetrievedAt: time.Now(),
 	}
 	if p.cache != nil {
 		_ = p.cache.Set(cacheKey, cache.Entry{
 			Versions:    result.Versions,
+			Releases:    result.Releases,
 			Source:      result.Source,
 			RetrievedAt: result.RetrievedAt,
 		})
@@ -155,8 +165,14 @@ func (p *RegistryProvider) readCache(key string) (cache.Entry, bool, error) {
 }
 
 func registryCacheResult(entry cache.Entry) providers.Result {
+	releases := entry.Releases
+	if len(releases) == 0 {
+		releases = model.ReleaseInfosFromVersions(entry.Versions)
+	}
+
 	return providers.Result{
 		Versions:    entry.Versions,
+		Releases:    releases,
 		Source:      entry.Source,
 		RetrievedAt: entry.RetrievedAt,
 		FromCache:   true,

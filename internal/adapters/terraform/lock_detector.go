@@ -72,6 +72,11 @@ func (LockDetector) Detect(path string) ([]model.Dependency, error) {
 			Name:           providerName,
 			CurrentVersion: match[1],
 			Source:         path,
+			Observations: []model.VersionObservation{{
+				Role:    "locked",
+				Version: match[1],
+				Source:  path,
+			}},
 		})
 		providerName = ""
 		inProviderBlock = false

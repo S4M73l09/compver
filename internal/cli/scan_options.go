@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/S4M73l09/compver/internal/providers"
 )
@@ -14,7 +15,15 @@ type scanOptions struct {
 	AllVersions        bool
 	Limit              int
 	NetworkMode        providers.NetworkMode
+	Show               map[string]bool
 }
+
+const (
+	showLifecycle       = "lifecycle"
+	showVulnerabilities = "vulnerabilities"
+	showSources         = "sources"
+	showReleases        = "releases"
+)
 
 func parseScanOptions(args []string) (
 	scanOptions,
@@ -60,6 +69,12 @@ func parseScanOptions(args []string) (
 		"ignorar la caché y consultar de nuevo",
 	)
 
+	show := flags.String(
+		"show",
+		"",
+		"secciones adicionales: lifecycle, vulnerabilities, sources, releases",
+	)
+
 	if err := flags.Parse(args); err != nil {
 		return scanOptions{}, "", err
 	}
@@ -99,6 +114,11 @@ func parseScanOptions(args []string) (
 		)
 	}
 
+	showSections, err := parseShowSections(*show)
+	if err != nil {
+		return scanOptions{}, "", err
+	}
+
 	root := "."
 
 	if len(remainingArgs) == 1 {
@@ -111,5 +131,36 @@ func parseScanOptions(args []string) (
 		AllVersions:        *allVersions,
 		Limit:              *limit,
 		NetworkMode:        networkMode,
+		Show:               showSections,
 	}, root, nil
+}
+
+func parseShowSections(value string) (map[string]bool, error) {
+	sections := make(map[string]bool)
+	if strings.TrimSpace(value) == "" {
+		return sections, nil
+	}
+
+	validSections := map[string]bool{
+		showLifecycle:       true,
+		showVulnerabilities: true,
+		showSources:         true,
+		showReleases:        true,
+	}
+
+	for _, rawSection := range strings.Split(value, ",") {
+		section := strings.TrimSpace(strings.ToLower(rawSection))
+		if section == "" {
+			continue
+		}
+		if !validSections[section] {
+			return nil, fmt.Errorf(
+				"sección no soportada en --show: %s (válidas: lifecycle, vulnerabilities, sources, releases)",
+				section,
+			)
+		}
+		sections[section] = true
+	}
+
+	return sections, nil
 }
