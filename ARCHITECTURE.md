@@ -78,6 +78,7 @@ compver-pre-release/
 │   │   └── version.go                     # Muestra la versión de Compver.
 │   ├── engine/                            # Motor genérico de análisis.
 │   │   ├── engine.go                      # Coordina detectores y proveedores.
+│   │   ├── ignore.go                      # Gestiona exclusiones del recorrido.
 │   │   ├── correlation.go                 # Agrupa observaciones de una dependencia.
 │   │   ├── correlation_test.go            # Tests de correlación.
 │   │   └── engine_test.go                 # Tests del motor.
@@ -94,6 +95,7 @@ compver-pre-release/
 │       ├── constraint.go                  # Restricciones normalizadas.
 │       └── constraint_test.go             # Tests de restricciones.
 ├── README.md                              # Documentación de uso.
+├── .compverignore                          # Exclusiones opcionales del análisis.
 ├── ARCHITECTURE.md                        # Diseño interno del proyecto.
 ├── CHANGELOG.md                           # Historial de cambios.
 ├── CONTRIBUTING.md                        # Explicacion para contribuir al proyecto.
@@ -156,6 +158,44 @@ Es el núcleo de Compver. Se encarga de:
 - Guardar las versiones disponibles.
 - Conservar errores individuales sin detener todo el análisis.
 - Devolver un resultado estructurado.
+
+### Exclusiones del recorrido
+
+Antes de recorrer el filesystem, el motor crea un `IgnoreMatcher` y carga de
+forma opcional el archivo `.compverignore` situado en la raíz analizada.
+
+El motor excluye por defecto estos directorios:
+
+```text
+.git/
+node_modules/
+vendor/
+.cache/
+dist/
+build/
+```
+
+El archivo `.compverignore` permite añadir exclusiones específicas para un
+proyecto. Admite comentarios, líneas vacías y patrones simples:
+
+```text
+# Directorios completos
+legacy/
+tmp/
+examples/
+
+# Archivos o directorios mediante comodines
+*.generated.tf
+generated*
+```
+
+Los patrones sin `/` se comparan con el nombre de cada archivo o directorio.
+Los patrones que contienen `/` se comparan con la ruta relativa desde la raíz
+analizada. `.terraform/` no se excluye por defecto porque el adaptador de
+Terraform puede utilizarlo para detectar providers instalados.
+
+La exclusión solo afecta al análisis de Compver; no modifica `.gitignore` ni
+el comportamiento de Git.
 
 El motor trabaja mediante interfaces genéricas:
 

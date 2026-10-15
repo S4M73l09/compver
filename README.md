@@ -241,6 +241,31 @@ hashicorp/aws                                 v5.0.0          directa      curre
 
 ---
 
+### Control sobre exclusiones de ***Compver***
+
+A la hora de verificar versiones, es importante tambien contar con un archivo que nos permita colocar las extensiones, rutas o archivos que queramos que ***compver*** ignore a la hora de verificar sus versiones.
+
+Para ello se ha añadido al motor la integracion de un `.compverignore` en el recorrido del motor.
+
+Las exclusiones predeterminadas actuales ronda:
+
+- `.git`
+- `node_modules`
+- `vendor`
+- `.cache`
+- `dist`
+- `build`
+
+Tambien contiene opciones para:
+
+- Soporte para excluir directorios y archivos personalizados.
+- Soporte para comentarios y lineas vacias.
+- Validación de patrones inválidos.
+- `.terraform/` no se excluya automáticamente para conservar la detección de providers instalados.
+
+Para asignar estos cambios, se debe crear el archivo en la raiz del proyecto que se quiera analizar, manteniendo la misma metodologia que `.git`.
+
+> Recordatorio: `.compverignore` afecta únicamente a Compver, no modifica el comportamiento de Git ni sustituye al `.gitignore`.
 
 ### Lenguaje usado (actual)
 

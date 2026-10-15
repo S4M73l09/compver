@@ -95,6 +95,11 @@ func (e *Engine) AnalyzeContextWithOptions(
 		Path: root,
 	}
 
+	ignoreMatcher, err := NewIgnoreMatcher(root)
+	if err != nil {
+		return model.AnalysisResult{}, err
+	}
+
 	var detectedDependencies []model.Dependency
 
 	err = filepath.WalkDir(root, func(
@@ -112,11 +117,15 @@ func (e *Engine) AnalyzeContextWithOptions(
 			return walkErr
 		}
 
-		if entry.IsDir() {
-			if path != root && entry.Name() == ".git" {
+		if ignoreMatcher.ShouldSkip(path, entry) {
+			if entry.IsDir() {
 				return filepath.SkipDir
 			}
 
+			return nil
+		}
+
+		if entry.IsDir() {
 			return nil
 		}
 
