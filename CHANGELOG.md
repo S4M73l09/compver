@@ -16,6 +16,63 @@ Cambios realizados durante octubre de 2026.
 
 ---
 
+## [20-10-26]
+
+### Added
+
+- Lista de prioridades añadida:
+    - Añadido `--format json`.
+    - Mantener `table` como formato predeterminado añadido.
+    - El JSON incluye herramienta, dependencia, versión actual, estado, releases, lifecycle, vulnerabilidades y fuentes.
+- Mejorar después el parser para permitir opciones tanto antes como después de la ruta.
+    - Ejemplo de antes:
+    ```bash
+    compver scan --format json /tmp/compver-fixture
+    ```
+    - Ejemplo con la estructura actualizada:
+    ```bash
+    compver scan /tmp/compver-fixture --format json
+    ```
+
+- Añadido mejoras a la CLI de manera visual:
+    - Colores por estado. Solo para salida terminal, JSON nunca tendra colores.
+    - Iconos y bloques visuales.
+    - Resumen inicial.
+    - Argumento para quitar los colores con `--no-color`.
+    - Resumen por herramienta añadido.
+    - Tabla dinámica implementada.
+      - Las columnas calcular su ancho según el contenido.
+      - Los nombres largos se limitan y terminan en `…`.
+      - Los estados extensos tienen un ancho máximo controlado.
+      - Las columnas siguen alineadas.
+      - El resumen por herramientas y los detalles inferiores se mantienen.
+      - La salida JSON no se ve afectada por esta estructura.
+    - Añadido argumentos para mejorar la visibilidad y maniobrabilidad:
+      - `--verbose`: muestra todas las secciones detalladas de una herramienta o ruta.
+      - `--summary`: muestra solo el resumen general y el resumen por herramienta.
+      - `--quiet`: oculta la salida normal, manteniendo los errores.
+      - Los tres modos son incompatibles entre si.
+      - Se conserva el formato JSON mediante `--format-json`.
+      - El resumen general vuelve a mostrar la ruta analizada.
+      - Se reutiliza la agrupación de dependencias para evitar lógica duplicada.
+      - Ejemplos:
+        ```bash
+        compver scan . --summary
+        compver scan . --verbose
+        compver scan . --quiet
+        ```
+    - Añadido argumentos para el uso de Automatizacion:
+      - `--fail-on vulnerable`.
+      - `--fail-on end-of-life`.
+      - `--fail-on vulnerable,end-of-life`
+    Tambien acepta:
+      - `--fail-on eol`
+
+
+### Changed
+
+- Modificado archivo `scan_json_output` para arreglar fallo de reestructuracion a la hora de mostrar todas las versiones.
+
 
 ## [14-10-26]
 
@@ -32,6 +89,9 @@ Cambios realizados durante octubre de 2026.
     - `dist`
     - `build`
 - Añadido la creacion de un archivo que ignore dependencias o tecnologias concretas, `.compverignore`.
+
+
+### Changed
 
 
 

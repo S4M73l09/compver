@@ -154,6 +154,24 @@ Las secciones disponibles son:
 - `sources`: fuentes consultadas, observaciones detectadas y estado de la
   caché.
 
+> Breve recordatorio
+
+Las opciones de `scan` pueden colocarse antes o después de la ruta:
+
+Ejemplos:
+```bash
+compver scan --format json /ruta/proyecto
+compver scan /ruta/proyecto --format json
+compver scan /ruta/proyecto --tool terraform --limit 6
+```
+
+Compver reorganiza internamente los argumentos para procesarlos correctamente.  
+La ruta continúa siendo única y puede combinarse con las opciones disponibles.  
+
+#### Formato 
+
+Añadido argumento `--format`: Nos permite modificar la salida de la CLI, ya sea por tabla o directamente en formato JSON, a su vez nos permite redireccionar dicho JSON a un archivo concreto que queramos con la redireccion de la propia shell.
+
 #### Caché y conectividad
 
 Compver utiliza una caché común para reducir consultas externas y permitir
@@ -178,6 +196,78 @@ compver scan . --refresh
 ```
 
 `--offline` y `--refresh` no pueden utilizarse al mismo tiempo.
+
+
+#### Opciones de personalizacion de la salida CLI
+
+Por defecto la cli presenta colores y iconos ANSI cuando la salida es una terminal. Los colores no estaran cuando se use el parametro de `--format json`.
+
+Se utiliza la ruta de `tmp/compver-fixture` como ejemplo didactico, al igual que usar `.`.
+
+Si queremos quitar los colores:
+```bash
+compver scan /tmp/compver-fixture --no-color
+```
+Para mostrar todos los detalles disponibles:
+```bash
+compver scan . --verbose
+```
+
+Para mostrar únicamente los resúmenes:
+```bash
+compver scan . --summary
+```
+
+Para ocultar la salida normal:
+```bash
+compver scan . --quiet
+```
+
+Las opciones `--verbose`, `--summary` y `--quiet` no pueden utilizarse juntas.
+
+#### Automatizacion y códigos de salida
+
+Compver puede utilizarse en pipelines de CI/CD mediante `--fail-on`.
+
+Fallar si se detectan vulnerabilidades:
+
+```bash
+compver scan . --fail-on vulnerable
+```
+
+Fallar si se detectan dependencias fuera de soporte:
+
+```bash
+compver scan . --fail-on end-of-life
+```
+
+También pueden combinarse varios criterios:
+
+```bash
+compver scan . --fail-on vulnerable,end-of-life
+```
+
+El alias `eol` equivale a `end-of-life`:
+
+```bash
+compver scan . --fail-on vulnerable,eol
+```
+
+| Código | Significado |
+|---------|-------------|
+| `0`| El análisi finalizó correctamente y no se activó ninguna politica. |
+| `1`| Se produjo un error durante la ejecución |
+| `2`| Se incumplió una condición definida mediante `--fail-on` |
+
+
+Ejemplo para CI/CD con salida JSON:
+```bash
+compver scan . \
+  --format json \
+  --quiet \
+  --fail-on vulnerable,end-of-life
+```
+
 
 #### Mostrar la versión
 ```bash
@@ -231,13 +321,19 @@ hashicorp/aws                                 v5.0.0          directa      curre
 
 | Opción | Función |
 |---|---|
-| `--tool <nombre>` | Analiza únicamente una herramienta compatible. |
+| `--tool <nombre>` | Analiza únicamente una herramienta compatible, como `go` o `terraform`. |
 | `--limit <número>` | Limita el número de versiones mostradas. |
 | `--all-versions` | Muestra todas las versiones disponibles. |
-| `--include-prereleases` | Incluye alpha, beta, rc y otras pre-releases. |
-| `--show <secciones>` | Muestra información adicional. |
+| `--include-prereleases` | Incluye versiones `alpha`, `beta`, `rc` y otras pre-releases. |
+| `--show <secciones>` | Muestra información adicional: `lifecycle`, `vulnerabilities`, `sources` y `releases`. |
 | `--offline` | Utiliza únicamente datos almacenados en caché. |
 | `--refresh` | Ignora la caché y consulta de nuevo las fuentes externas. |
+| `--format <formato>` | Define el formato de salida: `table` o `json`. |
+| `--no-color` | Desactiva los colores de la terminal. |
+| `--verbose` | Activa todas las secciones detalladas del análisis. |
+| `--summary` | Muestra únicamente el resumen general y los resúmenes por herramienta. |
+| `--quiet` | Silencia la salida normal, manteniendo los errores y el código de salida. |
+| `--fail-on <criterios>` | Devuelve un error si se cumplen determinadas condiciones. |
 
 ---
 
