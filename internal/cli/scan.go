@@ -42,15 +42,48 @@ func (a *App) runScan(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
+	policyViolated := scanPolicyViolated(result, options.FailOn)
 
-	fmt.Printf("Ruta analizada: %s\n", result.Path)
-	fmt.Printf("Dependencias encontradas: %d\n", len(result.Dependencies))
+	if options.OutputFormat == "json" {
+		if err := printScanJSON(os.Stdout, result, options); err != nil {
+			fmt.Fprintf(os.Stderr, "error generando JSON: %v\n", err)
+			return 1
+		}
 
-	if len(result.Dependencies) == 0 {
+		if policyViolated {
+			return 2
+		}
+
 		return 0
 	}
 
-	printScanResult(result, options)
+	if options.Quiet {
+		if policyViolated {
+			return 2
+		}
+
+		return 0
+	}
+
+	style := newTerminalStyle(options.NoColor)
+	printScanSummary(result, style)
+
+	if len(result.Dependencies) == 0 {
+		if policyViolated {
+			return 2
+		}
+
+		return 0
+	}
+	if options.Summary {
+		printToolSummaries(result, style)
+		return 0
+	}
+
+	printScanResult(result, options, style)
+	if policyViolated {
+		return 2
+	}
 
 	return 0
 }
